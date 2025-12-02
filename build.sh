@@ -1113,6 +1113,7 @@ cmake -S "$projectRoot" -B "$daphneBuildDir" -G Ninja -DANTLR_VERSION="$antlrVer
 
 # run only 2 jobs in parallel if process killed by os
 cmake --build "$daphneBuildDir" --target "$target" -- -j2
+
 build_ts_end=$(date +%s%N)
 daphne_msg "Successfully built Daphne://${target} (took $(printableTimestamp $((build_ts_end - build_ts_begin))))"
 
