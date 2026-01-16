@@ -206,3 +206,85 @@ TEST_CASE("MNC Sketch example from paper", TAG_DATASTRUCTURES) {
 
     DataObjectFactory::destroy(m);
 }
+// ============================================================================
+// PROPAGATION TESTS (Append this to the end of the file)
+// ============================================================================
+
+TEST_CASE("MNC sketch propagation - basic product", TAG_DATASTRUCTURES) {
+    // Create test sketches manually
+    MncSketch hA;
+    hA.m = 3;
+    hA.n = 3;
+    hA.hr = {1, 2, 1};
+    hA.hc = {1, 2, 1};
+    hA.updateStatistics();
+    
+    MncSketch hB;
+    hB.m = 3;
+    hB.n = 3;
+    hB.hr = {2, 1, 2};
+    hB.hc = {1, 3, 0};
+    hB.updateStatistics();
+    
+    // Test product propagation with estimated sparsity 0.5
+    // Total cells = 9. Est NNZ = 4.5.
+    MncSketch hC = MncSketch::propagateProduct(hA, hB, 0.5);
+    
+    REQUIRE(hC.m == 3);
+    REQUIRE(hC.n == 3);
+    REQUIRE(hC.hr.size() == 3);
+    REQUIRE(hC.hc.size() == 3);
+    
+    // Check totals roughly match expectation (probabilistic rounding handles the 0.5)
+    std::uint64_t totalRows = std::accumulate(hC.hr.begin(), hC.hr.end(), 0ull);
+    std::uint64_t totalCols = std::accumulate(hC.hc.begin(), hC.hc.end(), 0ull);
+    
+    // Total should be 4 or 5
+    CHECK(totalRows >= 4);
+    CHECK(totalRows <= 5);
+    CHECK(totalCols >= 4);
+    CHECK(totalCols <= 5);
+}
+
+TEST_CASE("MNC sketch propagation - transpose", TAG_DATASTRUCTURES) {
+    MncSketch hA;
+    hA.m = 2;
+    hA.n = 3;
+    hA.hr = {1, 2};
+    hA.hc = {1, 0, 2};
+    hA.updateStatistics();
+    
+    MncSketch hT = MncSketch::propagateTranspose(hA);
+    
+    REQUIRE(hT.m == 3);       // Rows become cols
+    REQUIRE(hT.n == 2);       // Cols become rows
+    CHECK(hT.hr == hA.hc);    // Row counts should match original col counts
+    CHECK(hT.hc == hA.hr);    // Col counts should match original row counts
+}
+
+TEST_CASE("MNC sketch propagation - exact diagonal", TAG_DATASTRUCTURES) {
+    // Create a diagonal sketch (Identity-like 3x3)
+    MncSketch hDiag;
+    hDiag.m = 3;
+    hDiag.n = 3;
+    hDiag.hr = {1, 1, 1};
+    hDiag.hc = {1, 1, 1};
+    hDiag.updateStatistics(); // Will detect isDiagonal = true
+    
+    // Create a regular sketch (3x4)
+    MncSketch hReg;
+    hReg.m = 3;
+    hReg.n = 4;
+    hReg.hr = {2, 1, 3};
+    hReg.hc = {1, 2, 1, 2};
+    hReg.updateStatistics();
+    
+    // Test exact propagation: Diagonal(3x3) * Regular(3x4) = Regular(3x4)
+    MncSketch hResult = MncSketch::propagateProductExact(hDiag, hReg);
+    
+    // Output should mimic B (hReg) characteristics
+    CHECK(hResult.m == hReg.m);
+    CHECK(hResult.n == hReg.n);
+    CHECK(hResult.hr == hReg.hr);
+    CHECK(hResult.hc == hReg.hc);
+}

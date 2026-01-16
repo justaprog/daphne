@@ -1,11 +1,8 @@
 #pragma once
-
 #include <iostream>
-
 #include <vector>
 #include <cstddef>
 #include <cstdint>
-
 #include <runtime/local/datastructures/CSRMatrix.h>
 
 struct MncSketch{
@@ -33,6 +30,36 @@ struct MncSketch{
     std::uint32_t rowsGtHalf = 0;    // # n rows with hr > n/2
     std::uint32_t colsGtHalf = 0;    // # n cols with hc > m/2
     bool isDiagonal = false;         // optional flag if A is (full) diagonal
+
+    // ============================================================================
+    // PROPAGATION METHODS (to be implemented in MncSketch.cpp)
+    // ============================================================================
+
+    
+    // Update all statistics from hr/hc vectors
+    void updateStatistics();
+    
+    // Equation 11: Basic product propagation
+    static MncSketch propagateProduct(const MncSketch& hA, 
+                                     const MncSketch& hB,
+                                     double estimatedSparsity);
+    
+    // Equation 12: Exact propagation for diagonal matrices
+    static MncSketch propagateProductExact(const MncSketch& hA,
+                                          const MncSketch& hB);
+    
+    // Equation 14: Transpose propagation
+    static MncSketch propagateTranspose(const MncSketch& hA);
+    
+    // Helper: probabilistic rounding (critical for accuracy)
+    static std::vector<std::uint32_t> probabilisticRound(const std::vector<double>& counts);
+    
+    // Helper: scale counts by factor
+    static std::vector<double> scaleCounts(const std::vector<std::uint32_t>& counts,
+                                          double scaleFactor);
+    
+    // Helper: compute total of counts
+    static std::uint64_t totalCounts(const std::vector<std::uint32_t>& counts);
 };
 
 // Build MNC sketch from a CSRMatrix
