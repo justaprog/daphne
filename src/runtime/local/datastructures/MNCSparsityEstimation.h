@@ -17,7 +17,7 @@ inline double Edm(const std::vector<std::uint32_t>&,
 
 
 
-double estimateSparsity(const MncSketch &hA, const MncSketch &hB) {
+inline double estimateSparsity(const MncSketch &hA, const MncSketch &hB) {
     const std::size_t m = hA.m;
     const std::size_t l = hB.n;
 
