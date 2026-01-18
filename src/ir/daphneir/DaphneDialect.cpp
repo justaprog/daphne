@@ -131,6 +131,7 @@ mlir::Type mlir::daphne::DaphneDialect::parseType(mlir::DialectAsmParser &parser
         double sparsity = -1.0;
         MatrixRepresentation representation = MatrixRepresentation::Default; // default is dense
         BoolOrUnknown symmetric = BoolOrUnknown::Unknown;
+        MncSketchType* mncSketch = nullptr;
         mlir::Type elementType;
         if (parser.parseLess()) {
             return nullptr;
@@ -176,7 +177,16 @@ mlir::Type mlir::daphne::DaphneDialect::parseType(mlir::DialectAsmParser &parser
                     return nullptr;
                 }
                 symmetric = stringToBoolOrUnknown(symmetricStr.str());
-            } else {
+            } else if (succeeded(parser.parseOptionalKeyword("mncSketch"))) {
+                // For now, we just set it to a non-nullptr value to indicate that an MNC sketch is present.
+                // Proper parsing of the MNC sketch details can be implemented later.
+                llvm::StringRef mncSketchStr;
+                if (parser.parseLSquare() || parser.parseKeyword(&mncSketchStr) || parser.parseRSquare()) {
+                    return nullptr;
+                }
+                mncSketch = reinterpret_cast<MncSketchType*>(0x1); // dummy non-nullptr value
+            }
+            else {
                 return nullptr;
             }
         }
@@ -185,7 +195,7 @@ mlir::Type mlir::daphne::DaphneDialect::parseType(mlir::DialectAsmParser &parser
         }
 
         return MatrixType::get(parser.getBuilder().getContext(), elementType, numRows, numCols, sparsity,
-                               representation, symmetric);
+                               representation, symmetric, mncSketch);
     } else if (keyword == "Frame") {
         ssize_t numRows = -1;
         ssize_t numCols = -1;

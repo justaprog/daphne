@@ -2035,7 +2035,7 @@ def Daphne_RecordPropertiesOp : Daphne_Op<"recordProperties"> {
 def Daphne_TransferPropertiesOp : Daphne_Op<"transferProperties"> {
     let summary = "Transfers compile-time information on data properties to the runtime data objects";
 
-    let arguments = (ins MatrixOrU:$arg, F64:$sparsity, SI64:$symmetric);
+    let arguments = (ins MatrixOrU:$arg, F64:$sparsity, SI64:$symmetric, Variadic<StrScalar>:$mncSketch);
     let results = (outs);
 
     let hasCanonicalizeMethod = 1;

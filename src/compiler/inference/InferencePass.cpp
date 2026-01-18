@@ -31,10 +31,10 @@
 using namespace mlir;
 
 daphne::InferenceConfig::InferenceConfig(bool partialInferenceAllowed, bool typeInference, bool shapeInference,
-                                         bool frameLabelInference, bool sparsityInference, bool symmetricInference)
+                                         bool frameLabelInference, bool sparsityInference, bool symmetricInference, bool mncSketchInference)
     : partialInferenceAllowed(partialInferenceAllowed), typeInference(typeInference), shapeInference(shapeInference),
       frameLabelInference(frameLabelInference), sparsityInference(sparsityInference),
-      symmetricInference(symmetricInference) {}
+      symmetricInference(symmetricInference), mncSketchInference(mncSketchInference) {}
 
 namespace {
 void castOperandIf(OpBuilder &builder, Operation *op, size_t operandIdx, Type type) {
@@ -79,7 +79,8 @@ Type getTypeWithCommonInfo(Type t1, Type t2) {
                                        // TODO Maybe do approximate comparison of floating-point values.
                                        (sp1 == sp2) ? sp1 : -1,
                                        (repr1 == repr2) ? repr1 : daphne::MatrixRepresentation::Default,
-                                       (sym1 == sym2) ? sym1 : BoolOrUnknown::Unknown);
+                                       (sym1 == sym2) ? sym1 : BoolOrUnknown::Unknown,
+                                       (mnc1 == mnc2) ? mnc1 : nullptr);
     } else if (frm1 && frm2) { // both types are frames
         const std::vector<Type> cts1 = frm1.getColumnTypes();
         const std::vector<Type> cts2 = frm2.getColumnTypes();
@@ -273,6 +274,29 @@ class InferencePass : public PassWrapper<InferencePass, OperationPass<func::Func
                     }
                 }
             }
+            /*
+            if (cfg.mncSketchInference && returnsUnknownMncSketch(op)) {
+                // Try to infer the MNC sketch of all results of this operation.
+                std::vector<std::shared_ptr<daphne::MncSketch>> mncSketches = daphne::tryInferMncSketch(op);
+                const size_t numRes = op->getNumResults();
+                if (mncSketches.size() != numRes)
+                    throw ErrorHandler::compilerError(
+                        op, "InferencePass",
+                        "MNC sketch inference for op " + op->getName().getStringRef().str() + " returned " +
+                            std::to_string(mncSketches.size()) + " entries, but the op has " + std::to_string(numRes) +
+                            " results");
+                // Set the inferred values on all results of this operation.
+                for (size_t i = 0; i < numRes; i++) {
+                    const std::shared_ptr<daphne::MncSketch> mncSketch = mncSketches[i];
+                    if (llvm::isa<mlir::daphne::MatrixType>(op->getResultTypes()[i])) {
+                        Value rv = op->getResult(i);
+                        const Type rt = rv.getType();
+                        if (auto mt = mlir::dyn_cast<daphne::MatrixType>(rt))
+                            rv.setType(mt.withMncSketch(mncSketch));
+                    }
+                }
+            }
+            */
         }
         // ----------------------------------------------------------------
         // Special treatment for some control-flow (SCF) operations
@@ -553,7 +577,13 @@ class InferencePass : public PassWrapper<InferencePass, OperationPass<func::Func
             return false;
         });
     }
-
+    static bool returnsUnknownMncSketch(Operation *op) {
+        return llvm::any_of(op->getResultTypes(), [](Type rt) {
+            if (auto mt = mlir::dyn_cast<daphne::MatrixType>(rt))
+                return !mt.getMncSketch();
+            return false;
+        });
+    }
     StringRef getArgument() const final { return "inference"; }
     StringRef getDescription() const final { return "TODO"; }
 };

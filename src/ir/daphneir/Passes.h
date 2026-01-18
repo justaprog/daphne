@@ -31,13 +31,14 @@
 namespace mlir::daphne {
 struct InferenceConfig {
     InferenceConfig(bool partialInferenceAllowed, bool typeInference, bool shapeInference, bool frameLabelInference,
-                    bool sparsityInference, bool symmetricInference);
+                    bool sparsityInference, bool symmetricInference, bool mncSketchInference);
     bool partialInferenceAllowed;
     bool typeInference;
     bool shapeInference;
     bool frameLabelInference;
     bool sparsityInference;
     bool symmetricInference;
+    bool mncSketchInference;
 };
 
 // alphabetically sorted list of passes
