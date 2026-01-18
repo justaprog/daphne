@@ -63,6 +63,11 @@
 #include <stdexcept>
 #include <string>
 
+namespace {
+    // Global MncSketchType instance to be used as a singleton object.
+    mlir::daphne::MncSketchType globalMncSketchType;
+}
+
 struct DaphneInlinerInterface : public mlir::DialectInlinerInterface {
     using DialectInlinerInterface::DialectInlinerInterface;
 
@@ -184,7 +189,7 @@ mlir::Type mlir::daphne::DaphneDialect::parseType(mlir::DialectAsmParser &parser
                 if (parser.parseLSquare() || parser.parseKeyword(&mncSketchStr) || parser.parseRSquare()) {
                     return nullptr;
                 }
-                mncSketch = reinterpret_cast<MncSketchType*>(0x1); // dummy non-nullptr value
+                mncSketch = stringToMncSketchType(mncSketchStr.str()); // dummy non-nullptr value
             }
             else {
                 return nullptr;
@@ -265,6 +270,7 @@ void mlir::daphne::DaphneDialect::printType(mlir::Type type, mlir::DialectAsmPri
         auto sparsity = t.getSparsity();
         auto representation = t.getRepresentation();
         auto symmetric = t.getSymmetric();
+        auto mncSketch = t.getMncSketchType();
 
         if (sparsity != -1.0) {
             os << ":sp[" << sparsity << ']';
@@ -274,6 +280,9 @@ void mlir::daphne::DaphneDialect::printType(mlir::Type type, mlir::DialectAsmPri
         }
         if (symmetric != BoolOrUnknown::Unknown) {
             os << ":symmetric[" << boolOrUnknownToString(symmetric) << ']';
+        }
+        if (mncSketch != nullptr) {
+            os << ":mncSketch[" << mncSketchTypeToString(mncSketch) << ']';
         }
         os << '>';
     } else if (auto t = llvm::dyn_cast<mlir::daphne::FrameType>(type)) {
@@ -364,15 +373,34 @@ BoolOrUnknown mlir::daphne::stringToBoolOrUnknown(const std::string &str) {
     else
         throw std::runtime_error("no BoolOrUnknown equals the string `" + str + "`");
 }
+std::string mlir::daphne::mncSketchTypeToString(MncSketchType* mncSketch) {
+    if (mncSketch == nullptr) {
+        return "none";
+    } else {
+        // For now, we just return a placeholder string since we don't have details about MncSketchType.
+        return "MncSketch";
+    }
+}
+
+MncSketchType* mlir::daphne::stringToMncSketchType(const std::string &str) {
+    if (str == "none") {
+        return nullptr;
+    } else if (str == "MncSketch") {
+        return &globalMncSketchType; // dummy non-nullptr value
+    } else {
+        throw std::runtime_error("no MncSketchType equals the string `" + str + "`");
+    }
+}
+
 
 namespace mlir::daphne {
 namespace detail {
 
 // Constructor implementation
 MatrixTypeStorage::MatrixTypeStorage(::mlir::Type elementType, ssize_t numRows, ssize_t numCols, double sparsity,
-                                     MatrixRepresentation representation, BoolOrUnknown symmetric)
+                                     MatrixRepresentation representation, BoolOrUnknown symmetric, MncSketchType* mncSketch)
     : elementType(elementType), numRows(numRows), numCols(numCols), sparsity(sparsity), representation(representation),
-      symmetric(symmetric) {}
+      symmetric(symmetric), mncSketch(mncSketch) {}
 
 // Equality operator implementation
 bool MatrixTypeStorage::operator==(const KeyTy &tblgenKey) const {
@@ -388,6 +416,8 @@ bool MatrixTypeStorage::operator==(const KeyTy &tblgenKey) const {
         return false;
     if (symmetric != std::get<5>(tblgenKey))
         return false;
+    if (mncSketch != std::get<6>(tblgenKey))
+        return false;
     return true;
 }
 
@@ -395,7 +425,7 @@ bool MatrixTypeStorage::operator==(const KeyTy &tblgenKey) const {
 ::llvm::hash_code MatrixTypeStorage::hashKey(const KeyTy &tblgenKey) {
     auto float_hashable = static_cast<ssize_t>(std::get<3>(tblgenKey) / epsilon);
     return ::llvm::hash_combine(std::get<0>(tblgenKey), std::get<1>(tblgenKey), std::get<2>(tblgenKey), float_hashable,
-                                std::get<4>(tblgenKey), std::get<5>(tblgenKey));
+                                std::get<4>(tblgenKey), std::get<5>(tblgenKey), std::get<6>(tblgenKey));
 }
 
 // Construct implementation
@@ -406,9 +436,10 @@ MatrixTypeStorage *MatrixTypeStorage::construct(::mlir::TypeStorageAllocator &al
     auto sparsity = std::get<3>(tblgenKey);
     auto representation = std::get<4>(tblgenKey);
     auto symmetric = std::get<5>(tblgenKey);
+    auto mncSketch = std::get<6>(tblgenKey);
 
     return new (allocator.allocate<MatrixTypeStorage>())
-        MatrixTypeStorage(elementType, numRows, numCols, sparsity, representation, symmetric);
+        MatrixTypeStorage(elementType, numRows, numCols, sparsity, representation, symmetric, mncSketch);
 }
 
 } // namespace detail
@@ -423,7 +454,8 @@ BoolOrUnknown MatrixType::getSymmetric() const { return getImpl()->symmetric; }
 ::mlir::LogicalResult mlir::daphne::MatrixType::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
                                                        Type elementType, ssize_t numRows, ssize_t numCols,
                                                        double sparsity, MatrixRepresentation rep,
-                                                       BoolOrUnknown symmetric) {
+                                                       BoolOrUnknown symmetric,
+                                                       MncSketchType* mncSketch) {
     if ((
             // Value type is unknown.
             llvm::isa<mlir::daphne::UnknownType>(elementType)
