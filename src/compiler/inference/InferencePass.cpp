@@ -75,6 +75,8 @@ Type getTypeWithCommonInfo(Type t1, Type t2) {
         const daphne::MatrixRepresentation repr2 = mat2.getRepresentation();
         const BoolOrUnknown sym1 = mat1.getSymmetric();
         const BoolOrUnknown sym2 = mat2.getSymmetric();
+        const MncSketchType* mnc1 = mat1.getMncSketch();
+        const MncSketchType* mnc2 = mat2.getMncSketch();
         return daphne::MatrixType::get(ctx, (vt1 == vt2) ? vt1 : u, (nr1 == nr2) ? nr1 : -1, (nc1 == nc2) ? nc1 : -1,
                                        // TODO Maybe do approximate comparison of floating-point values.
                                        (sp1 == sp2) ? sp1 : -1,
@@ -274,10 +276,10 @@ class InferencePass : public PassWrapper<InferencePass, OperationPass<func::Func
                     }
                 }
             }
-            /*
             if (cfg.mncSketchInference && returnsUnknownMncSketch(op)) {
                 // Try to infer the MNC sketch of all results of this operation.
-                std::vector<std::shared_ptr<daphne::MncSketch>> mncSketches = daphne::tryInferMncSketch(op);
+                std::vector<daphne::MncSketchType*> mncSketches = daphne::tryInferMncSketch(op);
+
                 const size_t numRes = op->getNumResults();
                 if (mncSketches.size() != numRes)
                     throw ErrorHandler::compilerError(
@@ -285,18 +287,17 @@ class InferencePass : public PassWrapper<InferencePass, OperationPass<func::Func
                         "MNC sketch inference for op " + op->getName().getStringRef().str() + " returned " +
                             std::to_string(mncSketches.size()) + " entries, but the op has " + std::to_string(numRes) +
                             " results");
+
                 // Set the inferred values on all results of this operation.
                 for (size_t i = 0; i < numRes; i++) {
-                    const std::shared_ptr<daphne::MncSketch> mncSketch = mncSketches[i];
-                    if (llvm::isa<mlir::daphne::MatrixType>(op->getResultTypes()[i])) {
-                        Value rv = op->getResult(i);
-                        const Type rt = rv.getType();
-                        if (auto mt = mlir::dyn_cast<daphne::MatrixType>(rt))
-                            rv.setType(mt.withMncSketch(mncSketch));
+                    daphne::MncSketchType* mncSketch = mncSketches[i]; // nullptr means unknown
+
+                    Value rv = op->getResult(i);
+                    if (auto mt = mlir::dyn_cast<daphne::MatrixType>(rv.getType())) {
+                        rv.setType(mt.withMncSketch(mncSketch));
                     }
                 }
             }
-            */
         }
         // ----------------------------------------------------------------
         // Special treatment for some control-flow (SCF) operations
@@ -580,7 +581,7 @@ class InferencePass : public PassWrapper<InferencePass, OperationPass<func::Func
     static bool returnsUnknownMncSketch(Operation *op) {
         return llvm::any_of(op->getResultTypes(), [](Type rt) {
             if (auto mt = mlir::dyn_cast<daphne::MatrixType>(rt))
-                return !mt.getMncSketch();
+                return mt.getMncSketch() == nullptr;
             return false;
         });
     }
