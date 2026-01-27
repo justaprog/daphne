@@ -388,6 +388,7 @@ TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
 
     REQUIRE(s >= 0.0);
     REQUIRE(s <= 1.0);
+    std::cout << "Estimated sparsity: " << s << std::endl;
     // REQUIRE(s == 5);
     // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
     // REQUIRE(p == 4);           
@@ -411,6 +412,7 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     // [1 0 0]
     // [1 1 0]
     // [0 1 1]
+    
 
     auto m_B = genGivenVals<DenseMatrix<double>>(3, {1,0,0,
                                                     1,1,0,
@@ -420,14 +422,78 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     MncSketch hB = buildMncFromDenseMatrix(*m_B);
 
     double s = estimateSparsity_product(hA, hB);
-
-    REQUIRE(s >= 0.0);
-    REQUIRE(s <= 1.0);
+    // nnz in A*B = 7 / 9 = 0.7777
+    REQUIRE(s >= 0.65);
+    REQUIRE(s <= 0.85);
     // REQUIRE(s == 5);
     // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
     // REQUIRE(p == 4);
     // REQUIRE(s == 5);
 
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 ---
+    // [0,0,0,0,0,0,0,1,0], 
+    // [0,1,0,0,1,0,0,0,0], 
+    // [0,0,0,1,1,1,0,0,0], 
+    // [0,0,0,0,0,0,0,0,0],
+    // [0,0,1,0,0,0,0,0,0],
+    // [0,0,0,0,0,0,0,1,0],
+    // [1,0,0,1,0,0,0,0,0],
+    // [0,0,1,0,1,0,1,0,0],
+    // [0,0,0,0,0,0,0,0,1],
+    
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {0,0,0,0,0,0,0,1,0,
+                                                    0,1,0,0,1,0,0,0,0,
+                                                    0,0,0,1,1,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,
+                                                    0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,
+                                                    1,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,1,0,1,0,0,
+                                                    0,0,0,0,0,0,0,0,1});
+
+    // --- Matrix B: 9x10 ---
+    // [0 0 0 1 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 1 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 1 0 0 0 1 0 1 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 1 0 0]
+    // [0 0 1 0 0 0 0 0 0 0]
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {0,0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,0,0,1,0,1,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,0,
+                                                    0,0,1,0,0,0,0,0,0,0
+});
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    REQUIRE(hB.hc.size() == 10);
+    REQUIRE(hB.hr.size() == 9);
+    REQUIRE(hA.hc.size() == 9);
+    REQUIRE(hA.hr.size() == 9);
+    double s = estimateSparsity_product(hA, hB);
+
+   // nnz in A*B = 15 / 9*10 = 0.1666
+    REQUIRE(s <= 0.3);
+    REQUIRE(s >= 0.1);
+    // REQUIRE(s == 5);
+    // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
+    // REQUIRE(p == 4);
+    // REQUIRE(s == 5);
+    // std::cout << "Estimated sparsity: " << s << std::endl;
     DataObjectFactory::destroy(m_A);
     DataObjectFactory::destroy(m_B);
 }

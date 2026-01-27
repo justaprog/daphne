@@ -277,11 +277,37 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
 "MNC: Structure-Exploiting Sparsity Estimation for
 Matrix Expressions" section 3.2 
 */
-inline double Edm(const std::vector<std::uint32_t>&,
-                  const std::vector<std::uint32_t>&,
-                  std::size_t) {
-    return 0.5; // placeholder 
+// Edm returns an estimated DENSITY in [0, 1] over the remaining 'p' cells.
+// Caller can do: nnz += Edm(...) * p;
+inline double EdmDensity(const std::vector<std::uint32_t>& hcA_res,
+                  const std::vector<std::uint32_t>& hrB_res,
+                  std::uint32_t p)
+{
+    if (p == 0) return 0.0;
+    // std::cout << "hcA_res size: " << hcA_res.size() << ", hrB_res size: " << hrB_res.size() << ", p: " << p << std::endl;
+    if (hcA_res.size() != hrB_res.size())
+        throw std::invalid_argument("EdmDensity: vector sizes must match (same inner dimension).");
+
+    // t = total number of candidate contributions ("hits")
+    long double t = 0.0L;
+    for (std::size_t k = 0; k < hcA_res.size(); ++k) {
+        t += static_cast<long double>(hcA_res[k]) * static_cast<long double>(hrB_res[k]);
+    }
+
+    if (t <= 0.0L) return 0.0;
+
+    // s = 1 - (1 - 1/p)^t  (use log/exp for numerical stability)
+    const long double invP = 1.0L / static_cast<long double>(p);
+    const long double logBase = std::log1p(-invP);           // log(1 - 1/p), negative
+    const long double emptyProb = std::exp(t * logBase);    // (1 - 1/p)^t
+    long double s = 1.0L - emptyProb;
+
+    // Clamp due to floating point rounding
+    if (s < 0.0L) s = 0.0L;
+    if (s > 1.0L) s = 1.0L;
+    return static_cast<double>(s);
 }
+
 
 /**
  * Estimate the sparsity of the product of two matrices given their MNC sketches. 
@@ -317,7 +343,17 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
         std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
 
         if(p > 0) {
-            double dens = Edm(hA.hc, hB.hr, p);
+            std::vector<uint32_t> hcA_res;
+            std::vector<uint32_t> hrB_res;
+            for(std::size_t j = 0; j < hA.n; ++j) {
+                std::uint32_t hcA_val = static_cast<std::uint32_t>(hA.hc[j]);
+                hcA_res.push_back(hcA_val - static_cast<std::uint32_t>(hA.hec[j]));
+            }
+            for(std::size_t i = 0; i < hB.m; ++i) {
+                std::uint32_t hrB_val = static_cast<std::uint32_t>(hB.hr[i]);
+                hrB_res.push_back(hrB_val - static_cast<std::uint32_t>(hB.her[i]));
+            }
+            double dens = EdmDensity(hcA_res, hrB_res, p);
             nnz += dens * static_cast<double>(p);
         }
     }
@@ -326,7 +362,7 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
     else {
         std::size_t p = hA.nnzRows * hB.nnzCols;
         if(p > 0) {
-            double dens = Edm(hA.hc, hB.hr, p);
+            double dens = EdmDensity(hA.hc, hB.hr, p);
             nnz = dens * static_cast<double>(p);
         }
     }
@@ -448,8 +484,8 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
     double sparsity = estimateSparsity_product(hA, hB);
     double targetTotalNNZ = sparsity * hC.m * hC.n;
 
-    std::uint64_t totalRows = std::accumulate(hA.hr.begin(), hA.hr.end(), 0ULL);
-    std::uint64_t totalCols = std::accumulate(hB.hc.begin(), hB.hc.end(), 0ULL);
+    std::uint32_t totalRows = std::accumulate(hA.hr.begin(), hA.hr.end(), 0U);
+    std::uint32_t totalCols = std::accumulate(hB.hc.begin(), hB.hc.end(), 0U);
 
     double rowScale = (totalRows > 0) ? (targetTotalNNZ / totalRows) : 0.0;
     double colScale = (totalCols > 0) ? (targetTotalNNZ / totalCols) : 0.0;
