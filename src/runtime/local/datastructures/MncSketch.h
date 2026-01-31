@@ -81,7 +81,7 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
     h.hc.assign(h.n, 0);
 
     const std::size_t *rowOffsets = A.getRowOffsets();
-    const std::size_t *colIdxs    = A.getColIdxs();
+    const std::size_t *colIdxs    = A.getColIdxs(0);
 
     // --- 1) per-row nnz (hr) and row stats ---
     for(std::size_t i = 0; i < h.m; ++i) {
@@ -128,7 +128,11 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
 
     // --- 3) isDiagonal ---
     // We call a matrix "diagonal" if it is square and every non-zero lies on i == j.
-    if(h.m == h.n && nnzEnd > nnzBegin) {
+    // Optimization: if any row/col has >1 nnz, it cannot be diagonal.
+    if (h.maxHr > 1 || h.maxHc > 1) {
+        h.isDiagonal = false;
+    } 
+    else if (h.m == h.n && nnzEnd > nnzBegin) {
         bool diag = true;
         for(std::size_t i = 0; i < h.m && diag; ++i) {
             std::size_t s = rowOffsets[i];
@@ -321,40 +325,55 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
     const std::size_t m = hA.m;
     const std::size_t l = hB.n;
 
-    double nnz = 0.0;
+    //Fix use size_t instead of double for avoiding counting errors
+    std::size_t exact_nnz = 0;
+    double prob_nnz = 0.0;
 
     // Case 1: Exact count
     if(hA.maxHr <= 1 || hB.maxHc <= 1) {
         for(std::size_t j = 0; j < hA.n; ++j)
-            nnz += static_cast<double>(hA.hc[j]) * static_cast<double>(hB.hr[j]);
+            // Multiply as integers (size_t)
+            exact_nnz += static_cast<std::size_t>(hA.hc[j]) * static_cast<std::size_t>(hB.hr[j]);
     }
 
     // Case 2: Extended count
-    else if(!hA.her.empty() || !hB.her.empty()) {
+    else if(!hA.her.empty() && !hB.her.empty()) { // Note: I also applied the && fix here 
+        
+        // Fused (Exact Part 1 + Exact Part 2)
+        for(std::size_t k = 0; k < hA.n; ++k) {
+            // Term 1: hA^ec * hB^r
+            exact_nnz += static_cast<std::size_t>(hA.hec[k]) * static_cast<std::size_t>(hB.hr[k]);
 
-        // Exact part
-        for(std::size_t j = 0; j < hA.n; ++j)
-            nnz += static_cast<double>(hA.hec[j]) * static_cast<double>(hB.hr[j]);
+            // Term 2: hB^er * (hA^c - hA^ec)
+            // Check to ensure positive result before subtraction
+            if (hA.hc[k] > hA.hec[k]) {
+                exact_nnz += static_cast<std::size_t>(hB.her[k]) * (static_cast<std::size_t>(hA.hc[k]) - static_cast<std::size_t>(hA.hec[k]));
+            }
+        }
 
-        for(std::size_t i = 0; i < hB.m; ++i)
-            nnz += static_cast<double>(hB.her[i]) * static_cast<double>(hA.hc[i] - hA.hec[i]);
-
-        // Remaining uncertain cells
+        // Remaining uncertain cells (Probabilistic part)
         std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
 
         if(p > 0) {
             std::vector<uint32_t> hcA_res;
             std::vector<uint32_t> hrB_res;
+            // Pre-allocate memory for speed
+            hcA_res.reserve(hA.n);
+            hrB_res.reserve(hB.m);
+
             for(std::size_t j = 0; j < hA.n; ++j) {
                 std::uint32_t hcA_val = static_cast<std::uint32_t>(hA.hc[j]);
-                hcA_res.push_back(hcA_val - static_cast<std::uint32_t>(hA.hec[j]));
+                // Safety check to ensure we don't underflow if something is wrong
+                std::uint32_t sub = static_cast<std::uint32_t>(hA.hec[j]);
+                hcA_res.push_back((hcA_val > sub) ? (hcA_val - sub) : 0);
             }
             for(std::size_t i = 0; i < hB.m; ++i) {
                 std::uint32_t hrB_val = static_cast<std::uint32_t>(hB.hr[i]);
-                hrB_res.push_back(hrB_val - static_cast<std::uint32_t>(hB.her[i]));
+                std::uint32_t sub = static_cast<std::uint32_t>(hB.her[i]);
+                hrB_res.push_back((hrB_val > sub) ? (hrB_val - sub) : 0);
             }
             double dens = EdmDensity(hcA_res, hrB_res, p);
-            nnz += dens * static_cast<double>(p);
+            prob_nnz += dens * static_cast<double>(p);
         }
     }
 
@@ -363,17 +382,20 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
         std::size_t p = hA.nnzRows * hB.nnzCols;
         if(p > 0) {
             double dens = EdmDensity(hA.hc, hB.hr, p);
-            nnz = dens * static_cast<double>(p);
+            prob_nnz = dens * static_cast<double>(p);
         }
     }
 
-    // Lower bound
-    std::size_t lower = hA.rowsGtHalf * hB.colsGtHalf;
+   // Combine exact and probabilistic counts
+   double totalNNZ = static_cast<double>(exact_nnz) + prob_nnz;
 
-    if(nnz < static_cast<double>(lower))
-        nnz = static_cast<double>(lower); 
+   // Lower bound
+   std::size_t lower = hA.rowsGtHalf * hB.colsGtHalf;
 
-    return nnz / static_cast<double>(m * l); 
+   if(totalNNZ < static_cast<double>(lower))
+       totalNNZ = static_cast<double>(lower); 
+
+   return totalNNZ / static_cast<double>(m * l);
 }
 
 // ----------------------------------------------------------------------------
@@ -444,15 +466,11 @@ inline bool propagateExact(const MncSketch &hA, const MncSketch &hB, MncSketch &
     // Case 1: A is diagonal square
     if (hA.isDiagonal && hA.m == hA.n && hA.nnzRows == hA.m) {
         hC = hB;
-        hC.m = hA.m;
-        hC.isDiagonal = hB.isDiagonal;
         return true;
     }
     // Case 2: B is diagonal square
     if (hB.isDiagonal && hB.m == hB.n && hB.nnzCols == hB.n) {
         hC = hA;
-        hC.n = hB.n;
-        hC.isDiagonal = hA.isDiagonal;
         return true;
     }
     return false;
@@ -479,7 +497,9 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
     hC.hr.resize(hC.m);
     hC.hc.resize(hC.n);
 
-    thread_local std::mt19937 gen(std::random_device{}());
+    // FIX: Removed thread_local to simplify
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
 
     double sparsity = estimateSparsity_product(hA, hB);
     double targetTotalNNZ = sparsity * hC.m * hC.n;
