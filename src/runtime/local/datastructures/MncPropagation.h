@@ -7,6 +7,41 @@
 #include <cstdint> 
 #include "MNCSparsityEstimation.h"
 
+/**
+ * MNC Sparsity Propagation 
+ * This module implements the propagation logic for the MNC (Matrix non zero count) sketches
+ * With this module we are able to predict the intermediate sparsity and structure of a chain
+ * of multiplication of matrices (A*B*C) without having to execute the whole operation, this 
+ * enables us to save both time and memory. The Mnc Sparsity Propagation uses the MNC Sparsity estimation
+ * to get an inital density, it then scales the row and column histograms accordingly and then applies
+ * probablistic rounding(to avoid always rouding down to zero) 
+ * 
+ * 
+ * 
+ * 
+ * * This module implements propagation logic for MNC (Matrix Non-zero Count) sketches.
+ * It allows the system to predict the intermediate sparsity and structural metadata 
+ * of a chain of matrix multiplications (A * B * C...) without executing the 
+ * complete operations. By operating solely on the sketches, it saves significant 
+ * time and memory space during the query optimization phase.
+ * * The algorithm uses the MNC sparsity estimator to establish initial density targets,
+ * scales the row and column histograms accordingly, and applies probabilistic 
+ * rounding via a Mersenne Twister to ensure statistical accuracy across the chain.
+ */
+
+
+
+
+/*
+ * Helper function that propagates the histogram values (rows or columns) with rounding.
+ * The scaled counts are derived from the ratio of output to input NNZ.
+ * Probabilistic rounding is applied to prevent always rounding down to zero and 
+ * to maintain statistical accuracy.
+ *
+ * Input: The source Histogram from the input sketch.
+ * Output: The target vector to be filled in the new sketch.
+ * outNNZ: Number of non-zero entries in the resulting vector.
+ */
 // ----------------------------------------------------------------------------
 // Helper: Propagate a vector (rows or columns) 
 // ----------------------------------------------------------------------------
@@ -43,7 +78,13 @@ inline void propagateVector(
         }
     }
 }
-
+/*
+*Handles the base cases where one of the matices is a simple square diagnal matrix i.e Indetity matrix
+*For this case we can avoid the scaling and just copy the input sketch of the other matrix i.e non-identiy matrix
+*Input : SKetches hA and hB
+*Output : Sketch hC as the copy of the matrix B if diagnol condition is met
+*Return : True if we have the exact case, otherwise False if we require scaling 
+*/
 // ----------------------------------------------------------------------------
 // Exact propagation for Trivial cases (Diagonal matrices)
 // ----------------------------------------------------------------------------
@@ -65,6 +106,14 @@ inline bool propagateExact(const MncSketch &hA, const MncSketch &hB, MncSketch &
     return false;
 }
 
+/*
+*Preforms a single step propogation for 2 the matrices A and B i.e(A*B)
+*It first checks if the simple diaganol condition is met if not, then we use
+*non trvial method where the MNC Sparisity estimator is used to find the target
+*NNZ and then calcualte the scaling factor
+*Input : Sketches of hA and hB
+*Output : Sketch of hC with the predicted sparsity of the result
+*/
 // ----------------------------------------------------------------------------
 // Single-step propagation (A * B)
 // ----------------------------------------------------------------------------
@@ -120,6 +169,14 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
 
     return hC;
 }
+/*
+*This estimates the sparsiy of a chain of matrix multiplications, it works recursively,
+*by taking the result sketch of the first last multiplicatio and then using that as an
+*input for the next matrix in the chain, for example (A*B*C)
+*Input : A vector of MncSketches of the matrix chain
+*Output : The final sketch for the multiplication chain
+ */
+
 
 // ----------------------------------------------------------------------------
 // Chain propagation (multiple sketches)
