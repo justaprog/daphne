@@ -60,8 +60,8 @@ TEST_CASE("MNC sketch from CSRMatrix basic", TAG_DATASTRUCTURES) {
     // row + col nnz
     std::vector<std::uint32_t> expectedHr{1,1,1};
     std::vector<std::uint32_t> expectedHc{1,1,1};
-    CHECK(h.hr == expectedHr);
-    CHECK(h.hc == expectedHc);
+    CHECK(*h.hr == expectedHr);
+    CHECK(*h.hc == expectedHc);
 
     // summary stats
     CHECK(h.maxHr    == 1);
@@ -122,7 +122,7 @@ TEST_CASE("MNC sketch respects CSRMatrix sub-matrix view", TAG_DATASTRUCTURES) {
 
     // each row in the submatrix has exactly 1 nnz
     std::vector<std::uint32_t> expectedHrSub{1,1};
-    CHECK(hSub.hr == expectedHrSub);
+    CHECK(*hSub.hr == expectedHrSub);
     CHECK(hSub.nnzRows == 2);
     CHECK(hSub.rowsEq1 == 2);
 
@@ -194,14 +194,14 @@ TEST_CASE("Build MNC Sketch from csr matrix with example from paper", TAG_DATAST
     // row + col nnz
     std::vector<std::uint32_t> expectedHr{1,2,3,0,1,1,2,3,1};
     std::vector<std::uint32_t> expectedHc{1,1,2,2,3,1,1,2,1};
-    CHECK(h.hr == expectedHr);
-    CHECK(h.hc == expectedHc);
+    CHECK(*h.hr == expectedHr);
+    CHECK(*h.hc == expectedHc);
     // her and hec
     std::vector<std::uint32_t> expectedHer{0,1,1,0,0,0,1,1,1};
     std::vector<std::uint32_t> expectedHec{0,0,1,0,0,0,0,2,1};
     std::vector<std::uint32_t> notexpectedHec{1,1,1,0,0,0,0,2,1};
-    CHECK(h.her == expectedHer);
-    CHECK(h.hec == expectedHec);
+    CHECK(*h.her == expectedHer);
+    CHECK(*h.hec == expectedHec);
 
     DataObjectFactory::destroy(m);
 }
@@ -239,15 +239,15 @@ TEST_CASE("Build MNC Sketch from dense matrix with example from paper", TAG_DATA
     // row + col nnz
     std::vector<std::uint32_t> expectedHr{1,2,3,0,1,1,2,3,1};
     std::vector<std::uint32_t> expectedHc{1,1,2,2,3,1,1,2,1};
-    CHECK(h_dense.hr == expectedHr);
-    CHECK(h_dense.hc == expectedHc);
+    CHECK(*h_dense.hr == expectedHr);
+    CHECK(*h_dense.hc == expectedHc);
 
     // her and hec
     std::vector<std::uint32_t> expectedHer{0,1,1,0,0,0,1,1,1};
     std::vector<std::uint32_t> expectedHec{0,0,1,0,0,0,0,2,1};
     std::vector<std::uint32_t> notexpectedHec{1,1,1,0,0,0,0,2,1};
-    CHECK(h_dense.her == expectedHer);
-    CHECK(h_dense.hec == expectedHec);
+    CHECK(*h_dense.her == expectedHer);
+    CHECK(*h_dense.hec == expectedHec);
     
     DataObjectFactory::destroy(m_dense);
 }
@@ -480,10 +480,10 @@ TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_D
     MncSketch hA = buildMncFromDenseMatrix(*m_A);
     MncSketch hB = buildMncFromDenseMatrix(*m_B);
 
-    REQUIRE(hB.hc.size() == 10);
-    REQUIRE(hB.hr.size() == 9);
-    REQUIRE(hA.hc.size() == 9);
-    REQUIRE(hA.hr.size() == 9);
+    REQUIRE(hB.hc->size() == 10);
+    REQUIRE(hB.hr->size() == 9);
+    REQUIRE(hA.hc->size() == 9);
+    REQUIRE(hA.hr->size() == 9);
     double s = estimateSparsity_product(hA, hB);
 
    // nnz in A*B = 15 / 9*10 = 0.1666
@@ -646,7 +646,7 @@ TEST_CASE("Case 2: Outer Product (Density Blowup)", TAG_DATASTRUCTURES) {
     
     // Check total NNZ roughly matches 9
     uint64_t totalNNZ = 0;
-    for(auto c : hC.hr) totalNNZ += c;
+    for(auto c : *hC.hr) totalNNZ += c;
     REQUIRE(totalNNZ > 0);
 
     DataObjectFactory::destroy(A);
@@ -707,4 +707,49 @@ TEST_CASE("Case 3: Chain Propagation (Dimensions)", TAG_DATASTRUCTURES) {
     DataObjectFactory::destroy(A);
     DataObjectFactory::destroy(B);
     DataObjectFactory::destroy(C);
+
 }
+
+
+// -----------------------------------------------------------------------------
+// Transpose Test
+// -----------------------------------------------------------------------------
+TEST_CASE("Case 5: Transpose Propagation", TAG_DATASTRUCTURES) {
+    using ValueType = double;
+    // Row 0: [1, 0, 0, 0]
+    // Row 1: [0, 2, 3, 0]
+    // Row 2: [0, 0, 0, 4]
+    auto A = genGivenVals<CSRMatrix<ValueType>>(3, {
+        1, 0, 0, 0,
+        0, 2, 3, 0,
+        0, 0, 0, 4
+    });
+
+    MncSketch hA = buildMncFromCsrMatrix(*A);
+    MncSketch hC = propogateTranspose(hA); 
+
+    // 1. Verify Dimensions (Should be swapped)
+    // Input was 3x4 so the  Output should be 4x3
+    CHECK(hC.m == 4);
+    CHECK(hC.n == 3);
+
+    // 2. Verify Swapped Histograms
+    // A.hr was {1, 2, 1}. This should now be C.hc
+    CHECK((*hC.hc)[0] == 1);
+    CHECK((*hC.hc)[1] == 2);
+    CHECK((*hC.hc)[2] == 1);
+
+    // A.hc was {1, 1, 1, 1}. This should now be C.hr
+    CHECK((*hC.hr)[0] == 1);
+    CHECK((*hC.hr)[1] == 1);
+    CHECK((*hC.hr)[2] == 1);
+    CHECK((*hC.hr)[3] == 1);
+
+    // 3. Verify Stats Swapped
+    // A.maxHr was 2. C.maxHc should be 2.
+    CHECK(hC.maxHc == 2);
+    CHECK(hC.maxHr == 1);
+
+    DataObjectFactory::destroy(A);
+}
+

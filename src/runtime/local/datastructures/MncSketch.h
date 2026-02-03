@@ -32,6 +32,8 @@ SIGMOD '19: Proceedings of the 2019 International Conference on Management of Da
 #include <numeric>   
 #include <random>
 #include <algorithm> 
+//Changes (Abdullah)
+#include <memory>
 
 #include <runtime/local/datastructures/CSRMatrix.h>
 #include <runtime/local/datastructures/DenseMatrix.h>
@@ -45,14 +47,14 @@ struct MncSketch{
     std::size_t n = 0; // cols
 
     // core counts
-    std::vector<std::uint32_t> hr;   // nnz per row (size m)
-    std::vector<std::uint32_t> hc;   // nnz per col (size n)
+    std::shared_ptr<std::vector<std::uint32_t>> hr;   // nnz per row (size m)
+    std::shared_ptr<std::vector<std::uint32_t>> hc;   // nnz per col (size n)
 
     // Extended counts (optional, only constructed if maxHr or maxHc > 1)
     // her[i]: nnz in row i that lie in columns with hc == 1
     // hec[j]: nnz in column j that lie in rows with hr == 1
-    std::vector<std::uint32_t> her;
-    std::vector<std::uint32_t> hec;
+    std::shared_ptr<std::vector<std::uint32_t>> her;
+    std::shared_ptr<std::vector<std::uint32_t>> hec;
 
     // Summary statistics
     std::uint32_t maxHr = 0;
@@ -77,8 +79,9 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
     h.m = A.getNumRows();
     h.n = A.getNumCols();
 
-    h.hr.assign(h.m, 0);
-    h.hc.assign(h.n, 0);
+    // Changes (Abdullah)
+    h.hr = std::make_shared<std::vector<std::uint32_t>>(h.m, 0);
+    h.hc = std::make_shared<std::vector<std::uint32_t>>(h.n, 0);
 
     const std::size_t *rowOffsets = A.getRowOffsets();
     const std::size_t *colIdxs    = A.getColIdxs(0);
@@ -90,7 +93,8 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
         std::size_t e   = rowOffsets[i+1];
         std::uint32_t cnt = static_cast<std::uint32_t>(e - s);
 
-        h.hr[i] = cnt;
+        // Changes (Abdullah)
+        (*h.hr)[i] = cnt;
 
         if(cnt > 0) {
             h.nnzRows++;
@@ -110,14 +114,14 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
 
     for(std::size_t k = nnzBegin; k < nnzEnd; ++k) {
         std::size_t j = colIdxs[k];
-        auto &cnt = h.hc[j];
+        auto &cnt = (*h.hc)[j];
         if(cnt == 0)
             h.nnzCols++;
         cnt++;
     }
 
     for(std::size_t j = 0; j < h.n; ++j) {
-        auto cnt = h.hc[j];
+        auto cnt = (*h.hc)[j];
         if(cnt == 1)
             h.colsEq1++;
         if(cnt > h.m / 2)
@@ -152,8 +156,8 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
 
     // --- 4) extended counts her, hec --- (only if there is something to extend)
     if(h.maxHr > 1 || h.maxHc > 1) {
-        h.her.assign(h.m, 0);
-        h.hec.assign(h.n, 0);
+        h.her = std::make_shared<std::vector<std::uint32_t>>(h.m, 0);
+        h.hec = std::make_shared<std::vector<std::uint32_t>>(h.n, 0);
 
         // For each nnz at (i,j):
         //  - if hc[j] == 1, it contributes to her[i]
@@ -164,18 +168,17 @@ MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
             for(std::size_t k = s; k < e; ++k) {
                 std::size_t j = colIdxs[k];
 
-                if(h.hc[j] == 1)
-                    h.her[i]++;
+                if((*h.hc)[j] == 1)
+                    (*h.her)[i]++;
 
-                if(h.hr[i] == 1)
-                    h.hec[j]++;
+                if((*h.hr)[i] == 1)
+                    (*h.hec)[j]++;
             }
         }
     }
 
     return h;
 }
-
 /**
  * A function to build MNC sketch from a DenseMatrix
  * @param A The input DenseMatrix
@@ -187,8 +190,9 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
     h.m = A.getNumRows();
     h.n = A.getNumCols();
 
-    h.hr.assign(h.m, 0);
-    h.hc.assign(h.n, 0);
+    // Changes (Abdullah)
+    h.hr = std::make_shared<std::vector<std::uint32_t>>(h.m, 0);
+    h.hc = std::make_shared<std::vector<std::uint32_t>>(h.n, 0);
 
     const VT *rowPtr = A.getValues();
     const std::size_t rowSkip = A.getRowSkip();
@@ -207,7 +211,7 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
                 rowNnz++;
                 // increment column nnz
                 // (safe as long as counts fit into uint32_t; if not, switch to uint64_t)
-                h.hc[j]++;
+                (*h.hc)[j]++;
 
                 // diagonal check
                 if (diag && j != i)
@@ -215,7 +219,7 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
             }
         }
 
-        h.hr[i] = rowNnz;
+        (*h.hr)[i] = rowNnz;
 
         if (rowNnz > 0) {
             h.nnzRows++;
@@ -235,7 +239,7 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
 
     // --- 2) column stats from hc ---
     for (std::size_t j = 0; j < h.n; ++j) {
-        const std::uint32_t cnt = h.hc[j];
+        const std::uint32_t cnt = (*h.hc)[j];
         if (cnt > 0)
             h.nnzCols++;
         if (cnt == 1)
@@ -248,24 +252,24 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
 
     // --- 3) extended counts her/hec (optional) ---
     if (h.maxHr > 1 || h.maxHc > 1) {
-        h.her.assign(h.m, 0);
-        h.hec.assign(h.n, 0);
+        h.her = std::make_shared<std::vector<std::uint32_t>>(h.m, 0);
+        h.hec = std::make_shared<std::vector<std::uint32_t>>(h.n, 0);
 
         // Second scan over all entries:
         //  - if value!=0 and hc[j]==1 => her[i]++
         //  - if value!=0 and hr[i]==1 => hec[j]++
         const VT *rowPtr2 = A.getValues();
         for (std::size_t i = 0; i < h.m; ++i) {
-            const bool rowIsSingleton = (h.hr[i] == 1);
+            const bool rowIsSingleton = ((*h.hr)[i] == 1);
 
             for (std::size_t j = 0; j < h.n; ++j) {
                 const VT v = rowPtr2[j];
                 if (v != static_cast<VT>(0)) {
-                    if (h.hc[j] == 1)
-                        h.her[i]++;
+                    if ((*h.hc)[j] == 1)
+                        (*h.her)[i]++;
 
                     if (rowIsSingleton)
-                        h.hec[j]++;
+                        (*h.hec)[j]++;
                 }
             }
             rowPtr2 += rowSkip;
@@ -274,6 +278,7 @@ MncSketch buildMncFromDenseMatrix(const DenseMatrix<VT> &A) {
 
     return h;
 }
+
 
 
 // TODO: implement Density Map Estimator
@@ -332,22 +337,24 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
     // Case 1: Exact count
     if(hA.maxHr <= 1 || hB.maxHc <= 1) {
         for(std::size_t j = 0; j < hA.n; ++j)
-            // Multiply as integers (size_t)
-            exact_nnz += static_cast<std::size_t>(hA.hc[j]) * static_cast<std::size_t>(hB.hr[j]);
+            // FIX: Dereference pointers (*h.vec)[index]
+            exact_nnz += static_cast<std::size_t>((*hA.hc)[j]) * static_cast<std::size_t>((*hB.hr)[j]);
     }
 
     // Case 2: Extended count
-    else if(!hA.her.empty() && !hB.her.empty()) { // Note: I also applied the && fix here 
+    else if(hA.her && hB.her) { 
         
         // Fused (Exact Part 1 + Exact Part 2)
         for(std::size_t k = 0; k < hA.n; ++k) {
             // Term 1: hA^ec * hB^r
-            exact_nnz += static_cast<std::size_t>(hA.hec[k]) * static_cast<std::size_t>(hB.hr[k]);
+            // Changes (Abdullah)
+            exact_nnz += static_cast<std::size_t>((*hA.hec)[k]) * static_cast<std::size_t>((*hB.hr)[k]);
 
             // Term 2: hB^er * (hA^c - hA^ec)
             // Check to ensure positive result before subtraction
-            if (hA.hc[k] > hA.hec[k]) {
-                exact_nnz += static_cast<std::size_t>(hB.her[k]) * (static_cast<std::size_t>(hA.hc[k]) - static_cast<std::size_t>(hA.hec[k]));
+            // Changes (Abdullah)
+            if ((*hA.hc)[k] > (*hA.hec)[k]) {
+                exact_nnz += static_cast<std::size_t>((*hB.her)[k]) * (static_cast<std::size_t>((*hA.hc)[k]) - static_cast<std::size_t>((*hA.hec)[k]));
             }
         }
 
@@ -362,14 +369,16 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
             hrB_res.reserve(hB.m);
 
             for(std::size_t j = 0; j < hA.n; ++j) {
-                std::uint32_t hcA_val = static_cast<std::uint32_t>(hA.hc[j]);
+                // Changes (Abdullah)
+                std::uint32_t hcA_val = static_cast<std::uint32_t>((*hA.hc)[j]);
                 // Safety check to ensure we don't underflow if something is wrong
-                std::uint32_t sub = static_cast<std::uint32_t>(hA.hec[j]);
+                std::uint32_t sub = static_cast<std::uint32_t>((*hA.hec)[j]);
                 hcA_res.push_back((hcA_val > sub) ? (hcA_val - sub) : 0);
             }
             for(std::size_t i = 0; i < hB.m; ++i) {
-                std::uint32_t hrB_val = static_cast<std::uint32_t>(hB.hr[i]);
-                std::uint32_t sub = static_cast<std::uint32_t>(hB.her[i]);
+                // Changes (Abdullah)
+                std::uint32_t hrB_val = static_cast<std::uint32_t>((*hB.hr)[i]);
+                std::uint32_t sub = static_cast<std::uint32_t>((*hB.her)[i]);
                 hrB_res.push_back((hrB_val > sub) ? (hrB_val - sub) : 0);
             }
             double dens = EdmDensity(hcA_res, hrB_res, p);
@@ -381,7 +390,8 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
     else {
         std::size_t p = hA.nnzRows * hB.nnzCols;
         if(p > 0) {
-            double dens = EdmDensity(hA.hc, hB.hr, p);
+            // Changes (Abdullah)
+            double dens = EdmDensity(*hA.hc, *hB.hr, p);
             prob_nnz = dens * static_cast<double>(p);
         }
     }
@@ -494,8 +504,9 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
     // 2. Prepare approximate propagation
     hC.m = hA.m;
     hC.n = hB.n;
-    hC.hr.resize(hC.m);
-    hC.hc.resize(hC.n);
+    //Changes (Abdullah)
+    hC.hr = std::make_shared<std::vector<std::uint32_t>>(hC.m, 0);
+    hC.hc = std::make_shared<std::vector<std::uint32_t>>(hC.n, 0);
 
     // FIX: Removed thread_local to simplify
     static std::random_device rd;
@@ -504,16 +515,17 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
     double sparsity = estimateSparsity_product(hA, hB);
     double targetTotalNNZ = sparsity * hC.m * hC.n;
 
-    std::uint32_t totalRows = std::accumulate(hA.hr.begin(), hA.hr.end(), 0U);
-    std::uint32_t totalCols = std::accumulate(hB.hc.begin(), hB.hc.end(), 0U);
+    //Changes (Abdullah)
+    std::uint32_t totalRows = std::accumulate(hA.hr->begin(), hA.hr->end(), 0U);
+    std::uint32_t totalCols = std::accumulate(hB.hc->begin(), hB.hc->end(), 0U);
 
     double rowScale = (totalRows > 0) ? (targetTotalNNZ / totalRows) : 0.0;
     double colScale = (totalCols > 0) ? (targetTotalNNZ / totalCols) : 0.0;
 
     // 3. Propagate Rows
     propagateVector(
-        hA.hr,           
-        hC.hr,           
+        *hA.hr,          // Change (Abdullah)
+        *hC.hr,          // Change (Abdullah)
         rowScale,        
         hC.nnzRows,     
         hC.maxHr,        
@@ -525,8 +537,8 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
 
     // 4. Propagate Columns
     propagateVector(
-        hB.hc,           
-        hC.hc,           
+        *hB.hc,          // Change (Abdullah)
+        *hC.hc,          // Change (Abdullah)
         colScale,        
         hC.nnzCols,      
         hC.maxHc,        
@@ -538,6 +550,57 @@ inline MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB) {
 
     return hC;
 }
+
+/* Single-step propagation (A * B)
+Preforms a single step propogation for 2 the matrices A and B i.e(AB)
+*It first checks if the simple diaganol condition is met if not, then we use
+*non trvial method where the MNC Sparisity estimator is used to find the target
+*NNZ and then calcualte the scaling factor
+*Input : Sketches of hA and hB
+*Output : Sketch of hC with the predicted sparsity of the result
+*/
+
+/*
+Preforms a matrix transpose of a Matrix
+*Achieves O(1) Time complexity as we do a simple pointer swap
+*Input : Matrix A
+*Output : Matrix C (Transposed version of Matrix A)
+*/
+
+
+inline MncSketch propogateTranspose(const MncSketch &hA){
+    MncSketch hC;
+    // Swap Dimensions
+    hC.m = hA.n;
+    hC.n = hA.m;
+
+    //Rows become collumns, collums become rows
+    hC.hr = hA.hc;
+    hC.hc = hA.hr;
+
+    //Extended Vectors swap
+    hC.her = hA.hec;
+    hC.hec = hA.her;
+
+    //Swap characteristics
+    hC.maxHr = hA.maxHc;
+    hC.maxHc = hA.maxHr;
+    hC.nnzRows = hA.nnzCols;
+    hC.nnzCols = hA.nnzRows;
+    hC.rowsEq1 = hA.colsEq1;
+    hC.colsEq1 = hA.rowsEq1;
+    hC.rowsGtHalf = hA.colsGtHalf;
+    hC.colsGtHalf = hA.rowsGtHalf;
+
+    // Keeping the diaganal property
+    hC.isDiagonal = hA.isDiagonal;
+    return hC;
+}
+
+
+
+
+
 
 /*
 *This estimates the sparsiy of a chain of matrix multiplications, it works recursively,
