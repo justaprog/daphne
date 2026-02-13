@@ -42,6 +42,7 @@ SIGMOD '19: Proceedings of the 2019 International Conference on Management of Da
 MNC Sketch data structure to capture the structure of a matrix to estimate sparsity
 */
 using SketchId = int64_t;
+static constexpr SketchId UNKNOWN_SKETCH_ID = -1;
 
 struct MncSketch{
     // dimensions
@@ -82,6 +83,8 @@ public:
         return id;
     }
     const MncSketch* get(SketchId id) const {
+        if (id == UNKNOWN_SKETCH_ID)
+            return nullptr;
         auto it = sketches.find(id);
         return (it == sketches.end()) ? nullptr : &it->second;
     }
