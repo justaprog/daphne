@@ -35,14 +35,15 @@ SIGMOD '19: Proceedings of the 2019 International Conference on Management of Da
 //Changes (Abdullah)
 #include <memory>
 
+#include <utility>
+#include <llvm/ADT/DenseMap.h>
+
 #include <runtime/local/datastructures/CSRMatrix.h>
 #include <runtime/local/datastructures/DenseMatrix.h>
 
 /*
 MNC Sketch data structure to capture the structure of a matrix to estimate sparsity
 */
-using SketchId = int64_t;
-static constexpr SketchId UNKNOWN_SKETCH_ID = -1;
 
 struct MncSketch{
     // dimensions
@@ -70,9 +71,13 @@ struct MncSketch{
     std::uint32_t colsGtHalf = 0;    // # n cols with hc > m/2
     bool isDiagonal;         // optional flag if A is (full) diagonal
 };
+namespace mlir::daphne {
 /*
 Sketch registry to store MNC sketches and retrieve them by their sketch id
 */
+using SketchId = int64_t;
+static constexpr SketchId UNKNOWN_SKETCH_ID = -1;
+
 class MncSketchRegistry {
     SketchId nextId = 0;
     llvm::DenseMap<SketchId, MncSketch> sketches;
@@ -87,9 +92,16 @@ public:
             return nullptr;
         auto it = sketches.find(id);
         return (it == sketches.end()) ? nullptr : &it->second;
+    }   
+    void clear() {
+        sketches.clear();
+        nextId = 0;
     }
 };
-
+void setActiveMncSketchRegistry(MncSketchRegistry *reg);
+void clearActiveMncSketchRegistry();
+MncSketchRegistry *getActiveMncSketchRegistry();
+} // namespace mlir::daphne
 /**
  * A function to build MNC sketch from a CSRMatrix
  * @param A The input CSRMatrix
