@@ -28,6 +28,7 @@ include "ir/daphneir/DaphneInferShapeOpInterface.td"
 include "ir/daphneir/DaphneInferShapeTraits.td"
 include "ir/daphneir/DaphneInferSparsityOpInterface.td"
 include "ir/daphneir/DaphneInferSparsityTraits.td"
+include "ir/daphneir/DaphneInferMncSketchIdOpInterface.td"
 include "ir/daphneir/DaphneInferTypesOpInterface.td"
 include "ir/daphneir/DaphneInferTypesTraits.td"
 include "ir/daphneir/DaphneVectorizableOpInterface.td"
@@ -759,6 +760,7 @@ def Daphne_TransposeOp : Daphne_Op<"transpose", [
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     NumRowsFromArgNumCols, NumColsFromArgNumRows, SparsityFromArg, CUDASupport,
     DeclareOpInterfaceMethods<InferSymmetricOpInterface>,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>,
     Pure
 ]> {
     let arguments = (ins MatrixOrU:$arg);
@@ -2054,7 +2056,7 @@ def Daphne_RecordPropertiesOp : Daphne_Op<"recordProperties"> {
 def Daphne_TransferPropertiesOp : Daphne_Op<"transferProperties"> {
     let summary = "Transfers compile-time information on data properties to the runtime data objects";
 
-    let arguments = (ins MatrixOrU:$arg, F64:$sparsity, SI64:$symmetric);
+    let arguments = (ins MatrixOrU:$arg, F64:$sparsity, SI64:$symmetric, SI32:$mncSketchId);
     let results = (outs);
 
     let hasCanonicalizeMethod = 1;
