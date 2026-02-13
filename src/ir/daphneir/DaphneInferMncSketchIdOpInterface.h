@@ -20,7 +20,6 @@
 // ****************************************************************************
 // MncSketchId inference interfaces
 // ****************************************************************************
-
 #include "ir/daphneir/Daphne.h"
 namespace mlir::daphne {
 #include <ir/daphneir/DaphneInferMncSketchIdOpInterface.h.inc>
@@ -44,7 +43,7 @@ namespace mlir::daphne {
  * @param op The operation for whose results' this data property shall be inferred.
  * @return
  */
-std::vector<ssize_t> tryInferMncSketchId(mlir::Operation *op);
+std::vector<int64_t> tryInferMncSketchId(mlir::Operation *op);
 } // namespace mlir::daphne
 
 #endif // SRC_IR_DAPHNEIR_DAPHNEINFERMNCSKETCHIDOPINTERFACE_H
