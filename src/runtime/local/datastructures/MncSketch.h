@@ -590,7 +590,7 @@ Preforms a matrix transpose of a Matrix
 */
 
 
-inline MncSketch propogateTranspose(const MncSketch &hA){
+inline MncSketch propagateTranspose(const MncSketch &hA){
     MncSketch hC;
     // Swap Dimensions
     hC.m = hA.n;

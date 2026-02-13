@@ -486,7 +486,8 @@ TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_D
     REQUIRE(hA.hr->size() == 9);
     double s = estimateSparsity_product(hA, hB);
 
-   // nnz in A*B = 15 / 9*10 = 0.1666
+
+    // nnz in A*B = 15 / 9*10 = 0.1666
     REQUIRE(s <= 0.3);
     REQUIRE(s >= 0.1);
     // REQUIRE(s == 5);
@@ -497,6 +498,9 @@ TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_D
     DataObjectFactory::destroy(m_A);
     DataObjectFactory::destroy(m_B);
 }
+// TODO: Test cases: estimated sparsity should be expected as the paper implementation. 
+// TODO: structural properties: corner cases in the paper 
+
 
 // -----------------------------------------------------------------------------
     /**Propagation Tests
@@ -726,7 +730,7 @@ TEST_CASE("Case 5: Transpose Propagation", TAG_DATASTRUCTURES) {
     });
 
     MncSketch hA = buildMncFromCsrMatrix(*A);
-    MncSketch hC = propogateTranspose(hA); 
+    MncSketch hC = propagateTranspose(hA); 
 
     // 1. Verify Dimensions (Should be swapped)
     // Input was 3x4 so the  Output should be 4x3
