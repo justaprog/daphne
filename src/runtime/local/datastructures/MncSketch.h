@@ -41,6 +41,8 @@ SIGMOD '19: Proceedings of the 2019 International Conference on Management of Da
 /*
 MNC Sketch data structure to capture the structure of a matrix to estimate sparsity
 */
+using SketchId = int64_t;
+
 struct MncSketch{
     // dimensions
     std::size_t m = 0; // rows
@@ -66,6 +68,23 @@ struct MncSketch{
     std::uint32_t rowsGtHalf = 0;    // # n rows with hr > n/2
     std::uint32_t colsGtHalf = 0;    // # n cols with hc > m/2
     bool isDiagonal;         // optional flag if A is (full) diagonal
+};
+/*
+Sketch registry to store MNC sketches and retrieve them by their sketch id
+*/
+class MncSketchRegistry {
+    SketchId nextId = 0;
+    llvm::DenseMap<SketchId, MncSketch> sketches;
+public:
+    SketchId store(MncSketch s) {
+        SketchId id = nextId++;
+        sketches.try_emplace(id, std::move(s));
+        return id;
+    }
+    const MncSketch* get(SketchId id) const {
+        auto it = sketches.find(id);
+        return (it == sketches.end()) ? nullptr : &it->second;
+    }
 };
 
 /**
