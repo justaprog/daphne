@@ -34,7 +34,7 @@ std::vector<ssize_t> daphne::TransposeOp::inferMncSketchId() {
     // TransposeOp retains the symmetry of its argument.
     if (auto mt = llvm::dyn_cast<daphne::MatrixType>(getArg().getType()))
         return {mt.getMncSketchId()};
-    return {1};
+    return {-1};
 }
 
 // ****************************************************************************
@@ -50,7 +50,7 @@ std::vector<ssize_t> daphne::tryInferMncSketchId(Operation *op) {
         // and has zero or more than one results, we return unknown.
         std::vector<ssize_t> mncSketchIds;
         for (size_t i = 0; i < op->getNumResults(); i++)
-            mncSketchIds.push_back(1);
+            mncSketchIds.push_back(-1);
         return mncSketchIds;
     }
 }
