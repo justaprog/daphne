@@ -18,6 +18,7 @@
 #include <compiler/utils/CompilerUtils.h>
 #include <ir/daphneir/Daphne.h>
 #include <runtime/local/datastructures/DenseMatrix.h>
+#include <runtime/local/datastructures/MncSketch.h>
 
 #include <mlir/IR/Value.h>
 
@@ -116,18 +117,35 @@ std::vector<double> daphne::DiagMatrixOp::inferSparsity() {
 std::vector<double> daphne::MatMulOp::inferSparsity() {
     auto lhsTy = llvm::dyn_cast<daphne::MatrixType>(getLhs().getType());
     auto rhsTy = llvm::dyn_cast<daphne::MatrixType>(getRhs().getType());
-    if (lhsTy.getSparsity() == -1.0 || rhsTy.getSparsity() == -1.0) {
+    if (!lhsTy || !rhsTy)
         return {-1.0};
-    }
+
+    // Determine k (inner dimension)
     auto k = lhsTy.getNumCols();
-    if (k == -1) {
+    if (k == -1)
         k = rhsTy.getNumRows();
-    }
     if (k == -1)
         return {-1.0};
-    else
-        // unbiased estimate
-        return {1.0 - std::pow(1.0 - lhsTy.getSparsity() * rhsTy.getSparsity(), k)};
+    // If MNC sketches are available, use them
+    auto lhsId = lhsTy.getMncSketchId();
+    auto rhsId = rhsTy.getMncSketchId();
+    if (lhsId != -1 && rhsId != -1) {
+        if (auto *reg = getActiveMncSketchRegistry()) {
+            const MncSketch *hA = reg->get(lhsId);
+            const MncSketch *hB = reg->get(rhsId);
+            if (hA && hB) {
+                // preferred: estimate directly from sketches
+                double sC = estimateSparsity_product(*hA, *hB); // or (hA, hB)
+                return {sC};
+            }
+        }
+    }
+    // Fallback: unbiased estimate
+    const double sA = lhsTy.getSparsity();
+    const double sB = rhsTy.getSparsity();
+    if (sA == -1.0 || sB == -1.0)
+        return {-1.0};
+    return {1.0 - std::pow(1.0 - sA * sB, static_cast<double>(k))};
 }
 
 std::vector<double> daphne::TriOp::inferSparsity() {
