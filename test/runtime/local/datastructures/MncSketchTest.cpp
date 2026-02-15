@@ -388,7 +388,7 @@ TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
 
     REQUIRE(s >= 0.0);
     REQUIRE(s <= 1.0);
-    std::cout << "Estimated sparsity: " << s << std::endl;
+    // std::cout << "Estimated sparsity: " << s << std::endl;
     // REQUIRE(s == 5);
     // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
     // REQUIRE(p == 4);           
@@ -474,8 +474,7 @@ TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_D
                                                     0,0,0,0,1,0,0,0,0,0,
                                                     0,0,0,0,0,0,0,0,0,0,
                                                     0,0,0,0,0,0,0,1,0,0,
-                                                    0,0,1,0,0,0,0,0,0,0
-});
+                                                    0,0,1,0,0,0,0,0,0,0});
 
     MncSketch hA = buildMncFromDenseMatrix(*m_A);
     MncSketch hB = buildMncFromDenseMatrix(*m_B);
@@ -757,3 +756,183 @@ TEST_CASE("Case 5: Transpose Propagation", TAG_DATASTRUCTURES) {
     DataObjectFactory::destroy(A);
 }
 
+TEST_CASE("Estimate sparsity for element-wise addition", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseAddition(hA, hB);
+    // std::cout << "Estimated sparsity: " << s << std::endl;
+    
+    REQUIRE(s == Approx(0.5556).epsilon(1e-4));
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Estimate sparsity for element-wise addition (Large)", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 ---
+    // [0,0,0,0,0,0,0,1,0], 
+    // [0,1,0,0,1,0,0,0,0], 
+    // [0,0,0,1,1,1,0,0,0], 
+    // [0,0,0,0,0,0,0,0,0],
+    // [0,0,1,0,0,0,0,0,0],
+    // [0,0,0,0,0,0,0,1,0],
+    // [1,0,0,1,0,0,0,0,0],
+    // [0,0,1,0,1,0,1,0,0],
+    // [0,0,0,0,0,0,0,0,1],
+    
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {0,0,0,0,0,0,0,1,0,
+                                                    0,1,0,0,1,0,0,0,0,
+                                                    0,0,0,1,1,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,
+                                                    0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,
+                                                    1,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,1,0,1,0,0,
+                                                    0,0,0,0,0,0,0,0,1
+    });
+
+    // --- Matrix B: 9x10 ---
+    // [0 0 0 1 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 1 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 1 0 0 0 1 0 1 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 1 0 0]
+    // [0 0 1 0 0 0 0 0 0 0]
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {0,0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,0,0,1,0,1,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,0,
+                                                    0,0,1,0,0,0,0,0,0,0
+    });
+
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseAddition(hA, hB);
+    
+    REQUIRE(s <= 1.0);
+    REQUIRE(s >= 0.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Estimate sparsity for element-wise multiplication", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseMultiplication(hA, hB);
+    std::cout << "Estimated sparsity: " << s << std::endl;
+    
+    REQUIRE(s >= 0.11);
+    REQUIRE(s <= 0.112);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Estimate sparsity for element-wise multiplication (Large)", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 ---
+    // [0,0,0,0,0,0,0,1,0], 
+    // [0,1,0,0,1,0,0,0,0], 
+    // [0,0,0,1,1,1,0,0,0], 
+    // [0,0,0,0,0,0,0,0,0],
+    // [0,0,1,0,0,0,0,0,0],
+    // [0,0,0,0,0,0,0,1,0],
+    // [1,0,0,1,0,0,0,0,0],
+    // [0,0,1,0,1,0,1,0,0],
+    // [0,0,0,0,0,0,0,0,1],
+    
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {0,0,0,0,0,0,0,1,0,
+                                                    0,1,0,0,1,0,0,0,0,
+                                                    0,0,0,1,1,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,
+                                                    0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,
+                                                    1,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,1,0,1,0,0,
+                                                    0,0,0,0,0,0,0,0,1
+    });
+
+    // --- Matrix B: 9x10 ---
+    // [0 0 0 1 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 1 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 1 0 0 0 1 0 1 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 1 0 0]
+    // [0 0 1 0 0 0 0 0 0 0]
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {0,0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,0,0,1,0,1,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,0,
+                                                    0,0,1,0,0,0,0,0,0,0
+    });
+
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseMultiplication(hA, hB);
+    
+    REQUIRE(s <= 1.0);
+    REQUIRE(s >= 0.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}

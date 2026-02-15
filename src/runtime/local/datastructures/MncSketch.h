@@ -442,6 +442,75 @@ inline double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB)
    return totalNNZ / static_cast<double>(m * l);
 }
 
+inline double nnzOverlap(const MncSketch &hA, const MncSketch &hB) { 
+    // Compute nnz(A) and nnz(B) 
+    uint64_t nnzA = 0; 
+    uint64_t nnzB = 0; 
+    
+    for(uint32_t v : *hA.hc) nnzA += v;
+    for(uint32_t v : *hB.hc) nnzB += v;
+
+    if(nnzA == 0 || nnzB == 0) {
+        return 0.0;
+    }
+    // numerator = sum_j hcA[j] * hcB[j] 
+    long double numerator = 0.0L; 
+
+    for(size_t j = 0; j < hA.n; ++j) { 
+        numerator += static_cast<long double>((*hA.hc)[j]) * 
+            static_cast<long double>((*hB.hc)[j]); 
+        } 
+
+    // denominator = nnz(A) * nnz(B)
+    long double denom = 
+        static_cast<long double>(nnzA) * 
+        static_cast<long double>(nnzB); 
+
+    return static_cast<double>(numerator / denom); 
+}
+
+inline double estimateSparsity_ElementWiseAddition(const MncSketch &hA, const MncSketch &hB) { 
+    const std::size_t m = hA.m;
+    const std::size_t n = hA.n;
+
+    const long double lambda = nnzOverlap(hA, hB); 
+
+    long double total = 0.0L; 
+
+    for (std::size_t i = 0; i < m; ++i) { 
+        long double a = (*hA.hr)[i];
+        long double b = (*hB.hr)[i];
+
+        total += a + b - (a * b * lambda);
+    } 
+    
+    long double s = total / static_cast<long double>(m * n); 
+        
+    return static_cast<double>(s); 
+}
+
+inline double estimateSparsity_ElementWiseMultiplication(const MncSketch &hA, const MncSketch &hB) {
+    const std::size_t m = hA.m;
+    const std::size_t n = hA.n;
+
+    const long double lambda = nnzOverlap(hA, hB);
+
+    long double total = 0.0L;
+
+    for (std::size_t i = 0; i < m; ++i) {
+        long double a = (*hA.hr)[i];
+        long double b = (*hB.hr)[i];
+
+        total += a * b * lambda;  
+    }
+
+    long double s = total / static_cast<long double>(m * n);
+
+    return static_cast<double>(s);
+}
+
+
+
 // ----------------------------------------------------------------------------
 //    MNC Sparsity Propagation
 //    This module implements the propagation logic for the MNC (Matrix non zero count) sketches
