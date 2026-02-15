@@ -253,7 +253,7 @@ TEST_CASE("Build MNC Sketch from dense matrix with example from paper", TAG_DATA
 }
 
 // Tests for estimateSparsity_product function
-TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
+TEST_CASE("Estimate sparsity for product. Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
     using ValueType = double;
 
     // Matrix A: 3x3 
@@ -265,7 +265,7 @@ TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
     const size_t nnzA     = 3;
 
     CSRMatrix<ValueType> *A = 
-        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsA, numColsA, nnzA, /*zero=*/true);
+        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsA, numColsA, nnzA, true);
 
     ValueType *valuesA    = A->getValues();
     size_t   *colIdxsA    = A->getColIdxs();
@@ -292,7 +292,7 @@ TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
     const size_t nnzB     = 3;
 
     CSRMatrix<ValueType> *B = 
-        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsB, numColsB, nnzB, /*zero=*/true);
+        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsB, numColsB, nnzB, true);
 
     ValueType *valuesB    = B->getValues();
     size_t   *colIdxsB    = B->getColIdxs();
@@ -324,7 +324,7 @@ TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
     DataObjectFactory::destroy(B);
 }
 
-TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
+TEST_CASE("Estimate sparsity for product. Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
     using ValueType = double;
 
     // --- Matrix A: 3x3 ---
@@ -398,7 +398,7 @@ TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
     DataObjectFactory::destroy(B);
 }
 
-TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTURES) {
+TEST_CASE("Estimate sparsity for product Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTURES) {
     // --- Matrix A: 3x3 ---
     // [1 1 0]
     // [0 1 1]
@@ -434,7 +434,7 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     DataObjectFactory::destroy(m_B);
 }
 
-TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_DATASTRUCTURES) {
+TEST_CASE("Estimate sparsity for product. Case 4: test estimatsparsity_product using example from paper", TAG_DATASTRUCTURES) {
     // --- Matrix A: 9x9 ---
     // [0,0,0,0,0,0,0,1,0], 
     // [0,1,0,0,1,0,0,0,0], 
@@ -936,3 +936,74 @@ TEST_CASE("Estimate sparsity for element-wise multiplication (Large)", TAG_DATAS
     DataObjectFactory::destroy(m_A);
     DataObjectFactory::destroy(m_B);
 }
+
+TEST_CASE("Propagate element-wise addition", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    MncSketch hC = propagateAdd(hA, hB);
+
+    double totalNNZ = 0.0;
+    for (uint32_t val : *hC.hr) totalNNZ += val;
+    double sparsity = totalNNZ / (hC.m * hC.n);
+    std::cout << "Propagated addition sparsity: " << sparsity << std::endl;
+
+    REQUIRE(sparsity >= 0.0);
+    REQUIRE(sparsity <= 1.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Propagate element-wise multiplication", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    MncSketch hC = propagateMul(hA, hB);
+
+    double totalNNZ = 0.0;
+    for (uint32_t val : *hC.hr) totalNNZ += val;
+    double sparsity = totalNNZ / (hC.m * hC.n);
+    std::cout << "Propagated multiplication sparsity: " << sparsity << std::endl;
+
+    REQUIRE(sparsity >= 0.0);
+    REQUIRE(sparsity <= 1.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
