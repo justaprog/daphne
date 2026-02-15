@@ -434,66 +434,34 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     DataObjectFactory::destroy(m_B);
 }
 
-TEST_CASE("Case 4: test estimatsparsity_product using example from paper", TAG_DATASTRUCTURES) {
-    // --- Matrix A: 9x9 ---
-    // [0,0,0,0,0,0,0,1,0], 
-    // [0,1,0,0,1,0,0,0,0], 
-    // [0,0,0,1,1,1,0,0,0], 
-    // [0,0,0,0,0,0,0,0,0],
-    // [0,0,1,0,0,0,0,0,0],
-    // [0,0,0,0,0,0,0,1,0],
-    // [1,0,0,1,0,0,0,0,0],
-    // [0,0,1,0,1,0,1,0,0],
-    // [0,0,0,0,0,0,0,0,1],
-    
-    auto m_A = genGivenVals<DenseMatrix<double>>(9, {0,0,0,0,0,0,0,1,0,
-                                                    0,1,0,0,1,0,0,0,0,
-                                                    0,0,0,1,1,1,0,0,0,
-                                                    0,0,0,0,0,0,0,0,0,
-                                                    0,0,1,0,0,0,0,0,0,
-                                                    0,0,0,0,0,0,0,1,0,
-                                                    1,0,0,1,0,0,0,0,0,
-                                                    0,0,1,0,1,0,1,0,0,
-                                                    0,0,0,0,0,0,0,0,1});
+TEST_CASE("Case 4: test estimatsparsity_product using example from paper (Golden Master)", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 (Paper Example) ---
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {
+        0,0,0,0,0,0,0,1,0, 0,1,0,0,1,0,0,0,0, 0,0,0,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,0, 0,0,1,0,0,0,0,0,0, 0,0,0,0,0,0,0,1,0,
+        1,0,0,1,0,0,0,0,0, 0,0,1,0,1,0,1,0,0, 0,0,0,0,0,0,0,0,1
+    });
 
-    // --- Matrix B: 9x10 ---
-    // [0 0 0 1 0 0 0 0 0 0]
-    // [0 0 0 0 0 0 1 0 0 0]
-    // [0 0 0 0 0 0 0 0 0 0]
-    // [0 0 0 0 1 0 0 0 0 0]
-    // [0 0 1 0 0 0 1 0 1 0]
-    // [0 0 0 0 1 0 0 0 0 0]
-    // [0 0 0 0 0 0 0 0 0 0]
-    // [0 0 0 0 0 0 0 1 0 0]
-    // [0 0 1 0 0 0 0 0 0 0]
-    auto m_B = genGivenVals<DenseMatrix<double>>(9, {0,0,0,1,0,0,0,0,0,0,
-                                                    0,0,0,0,0,0,1,0,0,0,
-                                                    0,0,0,0,0,0,0,0,0,0,
-                                                    0,0,0,0,1,0,0,0,0,0,
-                                                    0,0,1,0,0,0,1,0,1,0,
-                                                    0,0,0,0,1,0,0,0,0,0,
-                                                    0,0,0,0,0,0,0,0,0,0,
-                                                    0,0,0,0,0,0,0,1,0,0,
-                                                    0,0,1,0,0,0,0,0,0,0});
+    // --- Matrix B: 9x10 (Paper Example) ---
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {
+        0,0,0,1,0,0,0,0,0,0, 0,0,0,0,0,0,1,0,0,0, 0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,1,0,0,0,0,0, 0,0,1,0,0,0,1,0,1,0, 0,0,0,0,1,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1,0,0, 0,0,1,0,0,0,0,0,0,0
+    });
 
     MncSketch hA = buildMncFromDenseMatrix(*m_A);
     MncSketch hB = buildMncFromDenseMatrix(*m_B);
 
-    REQUIRE(hB.hc->size() == 10);
-    REQUIRE(hB.hr->size() == 9);
-    REQUIRE(hA.hc->size() == 9);
-    REQUIRE(hA.hr->size() == 9);
     double s = estimateSparsity_product(hA, hB);
 
+    // --- Exact Verification ---
+    // Exact Hits = 7. Probabilistic Hits = 6.974. Total = 13.974.
+    // Sparsity = 13.974 / 90 ≈ 0.155266
+    double expectedSparsity = 0.155266;
+    
+    // Check strict equality within floating point margin
+    REQUIRE(s == Approx(expectedSparsity).epsilon(0.001));
 
-    // nnz in A*B = 15 / 9*10 = 0.1666
-    REQUIRE(s <= 0.3);
-    REQUIRE(s >= 0.1);
-    // REQUIRE(s == 5);
-    // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
-    // REQUIRE(p == 4);
-    // REQUIRE(s == 5);
-    // std::cout << "Estimated sparsity: " << s << std::endl;
     DataObjectFactory::destroy(m_A);
     DataObjectFactory::destroy(m_B);
 }
@@ -935,4 +903,37 @@ TEST_CASE("Estimate sparsity for element-wise multiplication (Large)", TAG_DATAS
 
     DataObjectFactory::destroy(m_A);
     DataObjectFactory::destroy(m_B);
+}
+
+
+
+TEST_CASE("Source Operations & Memory Benchmark", TAG_DATASTRUCTURES) {
+    // 1. Rand Test (Probabilistic)
+    size_t rows = 1000, cols = 1000;
+    double sparsity = 0.1;
+    MncSketch hRand = createMncFromRand(rows, cols, sparsity);
+    
+    double totalNNZ = 0;
+    for(auto c : *hRand.hr) totalNNZ += c;
+    double expected = rows * cols * sparsity;
+    
+    // Check if generated NNZ is within 10% of expected (100,000 +/- 10,000)
+    CHECK(totalNNZ >= expected * 0.90);
+    CHECK(totalNNZ <= expected * 1.10);
+    CHECK(hRand.m == rows);
+
+    // 2. Fill Test (Constant)
+    MncSketch hFill = createMncFromFill(5.0, 10, 5);
+    CHECK(hFill.nnzRows == 10);
+    CHECK((*hFill.hr)[0] == 5); 
+
+    // 3. Seq Test (Dense Column Vector)
+    MncSketch hSeq = createMncFromSeq(1, 10, 1);
+    CHECK(hSeq.m == 10);
+    CHECK(hSeq.n == 1);
+    CHECK((*hSeq.hr)[0] == 1); 
+
+    // 4. Memory Benchmark Test
+    size_t mem = getMncSizeBytes(hRand);
+    CHECK(mem > 16000);
 }

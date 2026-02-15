@@ -565,6 +565,96 @@ inline void propagateVector(
     }
 }
 
+// ----------------------------------------------------------------------------
+// Source Operations (Rand, Seq, Fill)
+// ----------------------------------------------------------------------------
+
+/**
+ * 1. RAND: Generates a probabilistic sketch for X = rand(rows, cols, sparsity)
+ */
+inline MncSketch createMncFromRand(size_t rows, size_t cols, double sparsity) {
+    MncSketch h;
+    h.m = rows; h.n = cols;
+    h.hr = std::make_shared<std::vector<uint32_t>>(rows, 0);
+    h.hc = std::make_shared<std::vector<uint32_t>>(cols, 0);
+    h.her = std::make_shared<std::vector<uint32_t>>(rows, 0);
+    h.hec = std::make_shared<std::vector<uint32_t>>(cols, 0);
+
+    if (sparsity <= 0.0) return h;
+    if (sparsity >= 1.0) {
+        // Dense logic
+        std::fill(h.hr->begin(), h.hr->end(), static_cast<uint32_t>(cols));
+        std::fill(h.hc->begin(), h.hc->end(), static_cast<uint32_t>(rows));
+        h.nnzRows = rows; h.nnzCols = cols;
+        h.maxHr = cols; h.maxHc = rows;
+        if (cols == 1) { h.rowsEq1 = rows; std::fill(h.her->begin(), h.her->end(), 1); }
+        if (rows == 1) { h.colsEq1 = cols; std::fill(h.hec->begin(), h.hec->end(), 1); }
+        h.rowsGtHalf = rows; h.colsGtHalf = cols;
+        return h;
+    }
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    
+    std::binomial_distribution<uint32_t> rowDist(cols, sparsity);
+    for(size_t i = 0; i < rows; ++i) {
+        uint32_t nnz = rowDist(gen);
+        (*h.hr)[i] = nnz;
+        if (nnz > 0) {
+            h.nnzRows++;
+            if (nnz > h.maxHr) h.maxHr = nnz;
+            if (nnz == 1) { h.rowsEq1++; (*h.her)[i] = 1; }
+            if (nnz > cols/2) h.rowsGtHalf++;
+        }
+    }
+
+    std::binomial_distribution<uint32_t> colDist(rows, sparsity);
+    for(size_t j = 0; j < cols; ++j) {
+        uint32_t nnz = colDist(gen);
+        (*h.hc)[j] = nnz;
+        if (nnz > 0) {
+            h.nnzCols++;
+            if (nnz > h.maxHc) h.maxHc = nnz;
+            if (nnz == 1) { h.colsEq1++; (*h.hec)[j] = 1; }
+            if (nnz > rows/2) h.colsGtHalf++;
+        }
+    }
+    h.isDiagonal = false; 
+    return h;
+}
+
+/**
+ * 2. FILL & SEQ Helpers
+ */
+inline MncSketch createMncFromFill(double val, size_t rows, size_t cols) {
+    return createMncFromRand(rows, cols, (val == 0.0) ? 0.0 : 1.0);
+}
+
+inline MncSketch createMncFromSeq(double start, double end, double step) {
+    if (step == 0.0) throw std::runtime_error("Seq step cannot be 0");
+    size_t rows = static_cast<size_t>(std::floor((end - start) / step)) + 1;
+    MncSketch h; 
+    h.m = rows; h.n = 1;
+    h.hr = std::make_shared<std::vector<uint32_t>>(rows, 1);
+    h.hc = std::make_shared<std::vector<uint32_t>>(1, rows);
+    h.her = std::make_shared<std::vector<uint32_t>>(rows, 1);
+    h.hec = std::make_shared<std::vector<uint32_t>>(1, 0);
+    h.nnzRows = rows; h.nnzCols = 1; h.maxHr = 1; h.maxHc = rows;
+    h.rowsEq1 = rows; h.colsEq1 = (rows==1)?1:0;
+    return h;
+}
+
+inline size_t getMncSizeBytes(const MncSketch& h) {
+    size_t size = sizeof(h);
+    if (h.hr) size += h.hr->size() * 4;
+    if (h.hc) size += h.hc->size() * 4;
+    if (h.her) size += h.her->size() * 4;
+    if (h.hec) size += h.hec->size() * 4;
+    return size;
+}
+
+
+
 /*
 *Handles the base cases where one of the matices is a simple square diagnal matrix i.e Indetity matrix
 *For this case we can avoid the scaling and just copy the input sketch of the other matrix i.e non-identiy matrix
