@@ -100,3 +100,12 @@ namespace mlir::daphne {
     void clearActiveMncSketchRegistry();
     MncSketchRegistry *getActiveMncSketchRegistry();
 } // namespace mlir::daphne
+
+inline size_t getMncSizeBytes(const MncSketch& h) {
+    size_t size = sizeof(h);
+    if (h.hr) size += h.hr->size() * 4;
+    if (h.hc) size += h.hc->size() * 4;
+    if (h.her) size += h.her->size() * 4;
+    if (h.hec) size += h.hec->size() * 4;
+    return size;
+}

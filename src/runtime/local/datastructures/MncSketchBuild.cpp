@@ -394,3 +394,25 @@ MncSketch buildMncFromSeq(double start, double end, double step) {
     h.rowsEq1 = rows; h.colsEq1 = (rows==1)?1:0;
     return h;
 }
+
+// explicitly instantiate to satisfy linker
+template MncSketch buildMncFromCsrMatrix<double>(const CSRMatrix<double> &);
+template MncSketch buildMncFromCsrMatrix<float>(const CSRMatrix<float> &);
+template MncSketch buildMncFromCsrMatrix<int>(const CSRMatrix<int> &);
+template MncSketch buildMncFromCsrMatrix<long>(const CSRMatrix<long> &);
+template MncSketch buildMncFromCsrMatrix<signed char>(const CSRMatrix<signed char> &);
+template MncSketch buildMncFromCsrMatrix<unsigned char>(const CSRMatrix<unsigned char> &);
+template MncSketch buildMncFromCsrMatrix<unsigned int>(const CSRMatrix<unsigned int> &);
+template MncSketch buildMncFromCsrMatrix<unsigned long>(const CSRMatrix<unsigned long> &);
+
+template MncSketch buildMncFromDenseMatrix<double>(const DenseMatrix<double> &);
+template MncSketch buildMncFromDenseMatrix<float>(const DenseMatrix<float> &);
+template MncSketch buildMncFromDenseMatrix<int>(const DenseMatrix<int> &);
+template MncSketch buildMncFromDenseMatrix<long>(const DenseMatrix<long> &);
+template MncSketch buildMncFromDenseMatrix<signed char>(const DenseMatrix<signed char> &);
+template MncSketch buildMncFromDenseMatrix<unsigned char>(const DenseMatrix<unsigned char> &);
+template MncSketch buildMncFromDenseMatrix<unsigned int>(const DenseMatrix<unsigned int> &);
+template MncSketch buildMncFromDenseMatrix<unsigned long>(const DenseMatrix<unsigned long> &);
+template MncSketch buildMncFromDenseMatrix<bool>(const DenseMatrix<bool> &);
+template MncSketch buildMncFromDenseMatrix<std::string>(const DenseMatrix<std::string> &);
+template MncSketch buildMncFromDenseMatrix<FixedStr16>(const DenseMatrix<FixedStr16> &);

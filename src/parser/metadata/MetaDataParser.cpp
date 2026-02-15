@@ -145,7 +145,7 @@ static void writeMncSketchToJson(nlohmann::json &json, const MncSketch &s) {
 
     jm[JsonKeys::MNCKeys::HR] = (s.hr ? *s.hr : std::vector<std::uint32_t>{});
     jm[JsonKeys::MNCKeys::HC] = (s.hc ? *s.hc : std::vector<std::uint32_t>{});
-
+    
     if (s.her && s.hec) {
         jm[JsonKeys::MNCKeys::HER] = *s.her;
         jm[JsonKeys::MNCKeys::HEC] = *s.hec;
@@ -273,9 +273,8 @@ std::string MetaDataParser::writeMetaDataToString(const FileMetaData &metaData) 
 
         json[JsonKeys::HDFS][JsonKeys::HDFSKeys::HDFSFilename] = "/" + baseFileName;
     }
-    if (metaData.mncSketch.has_value()) {
-        writeMncSketchToJson(json, *metaData.mncSketch);
-    }
+    writeMncSketchToJson(json, *metaData.mncSketch);
+    
     return json.dump();
 }
 void MetaDataParser::writeMetaData(const std::string &filename_, const FileMetaData &metaData) {
