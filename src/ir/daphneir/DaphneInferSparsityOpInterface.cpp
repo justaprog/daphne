@@ -19,6 +19,7 @@
 #include <ir/daphneir/Daphne.h>
 #include <runtime/local/datastructures/DenseMatrix.h>
 #include <runtime/local/datastructures/MncSketch.h>
+#include <runtime/local/datastructures/MncSketchEstimate.h>
 
 #include <mlir/IR/Value.h>
 

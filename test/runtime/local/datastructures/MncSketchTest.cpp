@@ -8,6 +8,9 @@
 #include <runtime/local/datastructures/ValueTypeUtils.h>
 
 #include <runtime/local/datastructures/MncSketch.h>
+#include <runtime/local/datastructures/MncSketchBuild.h>
+#include <runtime/local/datastructures/MncSketchEstimate.h>
+#include <runtime/local/datastructures/MncSketchPropagate.h>
 
 #include <tags.h>
 #include <catch.hpp>
@@ -911,7 +914,7 @@ TEST_CASE("Source Operations & Memory Benchmark", TAG_DATASTRUCTURES) {
     // 1. Rand Test (Probabilistic)
     size_t rows = 1000, cols = 1000;
     double sparsity = 0.1;
-    MncSketch hRand = createMncFromRand(rows, cols, sparsity);
+    MncSketch hRand = buildMncFromRand(rows, cols, sparsity, 42);
     
     double totalNNZ = 0;
     for(auto c : *hRand.hr) totalNNZ += c;
@@ -923,12 +926,12 @@ TEST_CASE("Source Operations & Memory Benchmark", TAG_DATASTRUCTURES) {
     CHECK(hRand.m == rows);
 
     // 2. Fill Test (Constant)
-    MncSketch hFill = createMncFromFill(5.0, 10, 5);
+    MncSketch hFill = buildMncFromFill(5.0, 10, 5);
     CHECK(hFill.nnzRows == 10);
     CHECK((*hFill.hr)[0] == 5); 
 
     // 3. Seq Test (Dense Column Vector)
-    MncSketch hSeq = createMncFromSeq(1, 10, 1);
+    MncSketch hSeq = buildMncFromSeq(1, 10, 1);
     CHECK(hSeq.m == 10);
     CHECK(hSeq.n == 1);
     CHECK((*hSeq.hr)[0] == 1); 
