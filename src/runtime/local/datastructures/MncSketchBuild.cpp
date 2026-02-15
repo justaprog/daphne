@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <runtime/local/datastructures/MncSketchBuild.h>
+#include <unordered_set>
 
 template<typename VT>
 MncSketch buildMncFromCsrMatrix(const CSRMatrix<VT> &A) {
@@ -277,7 +278,7 @@ inline MncSketch createMncFromRand(size_t rows, size_t cols, double sparsity) {
     return h;
 }
  */
-MncSketch buildMncFromRand(std::size_t m, std::size_t n, double density, std::int64_t seed) {
+MncSketch buildMncFromRand(std::size_t m, std::size_t n, double density, std::int64_t seed = -1) {
     MncSketch s;
     s.m = m; s.n = n;
     s.isDiagonal = false;
