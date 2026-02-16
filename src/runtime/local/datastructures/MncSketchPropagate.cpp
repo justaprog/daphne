@@ -44,6 +44,130 @@ MncSketch propagateTranspose(const MncSketch &hA){
     hC.isDiagonal = hA.isDiagonal;
     return hC;
 }
+static std::uint64_t sumVec(const std::shared_ptr<std::vector<std::uint32_t>> &v) {
+    if(!v) return 0;
+    return std::accumulate(v->begin(), v->end(), std::uint64_t{0});
+}
+
+static std::uint64_t totalNnz(const MncSketch &A) {
+    // Prefer hr if valid, else hc, else 0
+    if (A.hr && A.hr->size() == A.m) return sumVec(A.hr);
+    if (A.hc && A.hc->size() == A.n) return sumVec(A.hc);
+    return 0;
+}
+
+static void computeSummary(MncSketch &S) {
+    S.maxHr = 0; S.maxHc = 0;
+    S.nnzRows = 0; S.nnzCols = 0;
+    S.rowsEq1 = 0; S.colsEq1 = 0;
+    S.rowsGtHalf = 0; S.colsGtHalf = 0;
+
+    if (S.hr && S.hr->size() == S.m) {
+        for (std::size_t i = 0; i < S.m; i++) {
+            auto v = (*S.hr)[i];
+            S.maxHr = std::max(S.maxHr, v);
+            if (v > 0) S.nnzRows++;
+            if (v == 1) S.rowsEq1++;
+            if (v > S.n / 2) S.rowsGtHalf++;
+        }
+    }
+    if (S.hc && S.hc->size() == S.n) {
+        for (std::size_t j = 0; j < S.n; j++) {
+            auto v = (*S.hc)[j];
+            S.maxHc = std::max(S.maxHc, v);
+            if (v > 0) S.nnzCols++;
+            if (v == 1) S.colsEq1++;
+            if (v > S.m / 2) S.colsGtHalf++;
+        }
+    }
+}
+
+MncSketch propagateMncFromReshape(const MncSketch &A, std::size_t outM, std::size_t outN) {
+    // Cell count must be preserved.
+    const __int128 inCells  = static_cast<__int128>(A.m) * static_cast<__int128>(A.n);
+    const __int128 outCells = static_cast<__int128>(outM) * static_cast<__int128>(outN);
+    if (inCells != outCells) {
+        throw std::runtime_error("reshape: number of cells must be retained");
+    }
+
+    MncSketch C;
+    C.m = outM;
+    C.n = outN;
+    C.isDiagonal = (outM == A.m && outN == A.n) ? A.isDiagonal : false;
+
+    // Always allocate core vectors.
+    C.hr = std::make_shared<std::vector<std::uint32_t>>(outM, 0);
+    C.hc = std::make_shared<std::vector<std::uint32_t>>(outN, 0);
+
+    // Reshape does not preserve extended vectors in general -> do not propagate them.
+    C.her.reset();
+    C.hec.reset();
+
+    // Handle degenerate shapes
+    if (outM == 0 || outN == 0) {
+        computeSummary(C);
+        return C;
+    }
+
+    // Need input vectors for the exact (paper) case.
+    const bool haveHrA = A.hr && A.hr->size() == A.m;
+    const bool haveHcA = A.hc && A.hc->size() == A.n;
+
+    const std::uint64_t nnz = totalNnz(A);
+
+    // --- Exact row-wise concatenation case from the MNC paper ---
+    // They focus on: reshape m×n -> k×l with m mod k = 0 (k = outM),
+    // so each output row is a concatenation of g = m/k input rows. :contentReference[oaicite:2]{index=2}
+    if (haveHrA && haveHcA && outM > 0 && (A.m % outM == 0)) {
+        const std::size_t g = A.m / outM; // input rows per output row
+        // For row-wise reshape, l = n * g must hold.
+        if (outN == A.n * g) {
+            // hr_C: sum every g input rows (exact in this case)
+            for (std::size_t r = 0; r < outM; r++) {
+                std::uint64_t acc = 0;
+                for (std::size_t t = 0; t < g; t++) {
+                    acc += (*A.hr)[r * g + t];
+                }
+                (*C.hr)[r] = static_cast<std::uint32_t>(acc);
+            }
+
+            // hc_C: scale+replicate column counts (paper says rep(round(hcA/g), g)).
+            // We do an equivalent deterministic split that preserves totals exactly.
+            // For each original column j, distribute hcA[j] across g replicated columns.
+            for (std::size_t j = 0; j < A.n; j++) {
+                const std::uint32_t x = (*A.hc)[j];
+                const std::uint32_t base = (g == 0) ? 0 : (x / static_cast<std::uint32_t>(g));
+                const std::uint32_t rem  = (g == 0) ? 0 : (x % static_cast<std::uint32_t>(g));
+                for (std::size_t t = 0; t < g; t++) {
+                    (*C.hc)[t * A.n + j] = base + (t < rem ? 1u : 0u);
+                }
+            }
+
+            computeSummary(C);
+            return C;
+        }
+    }
+
+    // --- Fallback (best-effort): preserve nnz and spread uniformly ---
+    // (This is needed when reshape splits rows, or dimensions don't align nicely.)
+    {
+        const std::uint64_t baseR = nnz / outM;
+        const std::uint64_t remR  = nnz % outM;
+        for (std::size_t i = 0; i < outM; i++) {
+            (*C.hr)[i] = static_cast<std::uint32_t>(baseR + (i < remR ? 1 : 0));
+        }
+
+        const std::uint64_t baseC = nnz / outN;
+        const std::uint64_t remC  = nnz % outN;
+        for (std::size_t j = 0; j < outN; j++) {
+            (*C.hc)[j] = static_cast<std::uint32_t>(baseC + (j < remC ? 1 : 0));
+        }
+
+        computeSummary(C);
+        return C;
+    }
+}
+
 void propagateVector(
     const std::vector<std::uint32_t>& input,
     std::vector<std::uint32_t>& output,

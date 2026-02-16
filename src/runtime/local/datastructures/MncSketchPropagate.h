@@ -34,6 +34,7 @@ Preforms a matrix transpose of a Matrix
 */
 MncSketch propagateTranspose(const MncSketch &hA);
 
+MncSketch propagateMncFromReshape(const MncSketch &A, std::size_t outM, std::size_t outN);
 /*
 *Handles the base cases where one of the matices is a simple square diagnal matrix i.e Indetity matrix
 *For this case we can avoid the scaling and just copy the input sketch of the other matrix i.e non-identiy matrix

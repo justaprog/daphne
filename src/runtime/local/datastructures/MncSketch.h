@@ -32,6 +32,7 @@ SIGMOD '19: Proceedings of the 2019 International Conference on Management of Da
 #include <algorithm> 
 //Changes (Abdullah)
 #include <memory>
+#include <stdexcept>
 
 #include <utility>
 #include <llvm/ADT/DenseMap.h>
