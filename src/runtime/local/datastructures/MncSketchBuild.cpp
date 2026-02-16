@@ -225,59 +225,6 @@ static std::uint64_t effectiveSeed(std::int64_t seed) {
     return (static_cast<uint64_t>(rd()) << 32) ^ rd();
 }
 
-/**
- * 1. RAND: Generates a probabilistic sketch for X = rand(rows, cols, sparsity)
-inline MncSketch createMncFromRand(size_t rows, size_t cols, double sparsity) {
-    MncSketch h;
-    h.m = rows; h.n = cols;
-    h.hr = std::make_shared<std::vector<uint32_t>>(rows, 0);
-    h.hc = std::make_shared<std::vector<uint32_t>>(cols, 0);
-    h.her = std::make_shared<std::vector<uint32_t>>(rows, 0);
-    h.hec = std::make_shared<std::vector<uint32_t>>(cols, 0);
-
-    if (sparsity <= 0.0) return h;
-    if (sparsity >= 1.0) {
-        // Dense logic
-        std::fill(h.hr->begin(), h.hr->end(), static_cast<uint32_t>(cols));
-        std::fill(h.hc->begin(), h.hc->end(), static_cast<uint32_t>(rows));
-        h.nnzRows = rows; h.nnzCols = cols;
-        h.maxHr = cols; h.maxHc = rows;
-        if (cols == 1) { h.rowsEq1 = rows; std::fill(h.her->begin(), h.her->end(), 1); }
-        if (rows == 1) { h.colsEq1 = cols; std::fill(h.hec->begin(), h.hec->end(), 1); }
-        h.rowsGtHalf = rows; h.colsGtHalf = cols;
-        return h;
-    }
-
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    
-    std::binomial_distribution<uint32_t> rowDist(cols, sparsity);
-    for(size_t i = 0; i < rows; ++i) {
-        uint32_t nnz = rowDist(gen);
-        (*h.hr)[i] = nnz;
-        if (nnz > 0) {
-            h.nnzRows++;
-            if (nnz > h.maxHr) h.maxHr = nnz;
-            if (nnz == 1) { h.rowsEq1++; (*h.her)[i] = 1; }
-            if (nnz > cols/2) h.rowsGtHalf++;
-        }
-    }
-
-    std::binomial_distribution<uint32_t> colDist(rows, sparsity);
-    for(size_t j = 0; j < cols; ++j) {
-        uint32_t nnz = colDist(gen);
-        (*h.hc)[j] = nnz;
-        if (nnz > 0) {
-            h.nnzCols++;
-            if (nnz > h.maxHc) h.maxHc = nnz;
-            if (nnz == 1) { h.colsEq1++; (*h.hec)[j] = 1; }
-            if (nnz > rows/2) h.colsGtHalf++;
-        }
-    }
-    h.isDiagonal = false; 
-    return h;
-}
- */
 MncSketch buildMncFromRand(std::size_t m, std::size_t n, double density, std::int64_t seed = -1) {
     MncSketch s;
     s.m = m; s.n = n;
