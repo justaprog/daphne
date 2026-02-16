@@ -42,6 +42,9 @@ using namespace mlir::OpTrait;
 // ****************************************************************************
 // Utilities
 // ****************************************************************************
+// use this to avoid value mismatches
+int64_t UNKNOWN_SKETCH_ID = -1; 
+
 template <typename VT>
 static int64_t buildAndStoreSketch(uint64_t matrixAddr) {
     auto *reg = daphne::getActiveMncSketchRegistry();
@@ -59,61 +62,87 @@ static int64_t buildAndStoreSketch(uint64_t matrixAddr) {
 // ****************************************************************************
 
 std::vector<int64_t> daphne::RandMatrixOp::inferMncSketchId() {
-    // we cannot infer the mncSketchId of a random matrix, since it can have any structure
-    // rand arg: numRows, numCols, min, max, sparsity, seed
     auto *reg = getActiveMncSketchRegistry();
-    if (reg == nullptr) {
-        return {-1};
-    }
-    std::pair numRows = CompilerUtils::isConstant<ssize_t>(getNumRows());
-    std::pair numCols = CompilerUtils::isConstant<ssize_t>(getNumCols());
-    std::pair sparsity = CompilerUtils::isConstant<double>(getSparsity());
-    std::pair seed = CompilerUtils::isConstant<std::int64_t>(getSeed());
+    if (!reg)
+        return {UNKNOWN_SKETCH_ID};
+
+    auto numRows  = CompilerUtils::isConstant<ssize_t>(getNumRows());
+    auto numCols  = CompilerUtils::isConstant<ssize_t>(getNumCols());
+    auto sparsity = CompilerUtils::isConstant<double>(getSparsity());
+    auto seed     = CompilerUtils::isConstant<int64_t>(getSeed());
+
+    if (!numRows.first || !numCols.first || !sparsity.first || !seed.first)
+        return {UNKNOWN_SKETCH_ID};
+
     MncSketch hC = buildMncFromRand(
-        numRows.first ? static_cast<std::size_t>(numRows.second) : 0,
-        numCols.first ? static_cast<std::size_t>(numCols.second) : 0,
-        sparsity.first ? sparsity.second : 1.0,
-        seed.first ? seed.second : -1
+        static_cast<std::size_t>(numRows.second),
+        static_cast<std::size_t>(numCols.second),
+        sparsity.second,
+        seed.second
     );
+
     return {reg->store(std::move(hC))};
+}
+static bool getConstAsDouble(Value v, double &out) {
+    if (auto p = CompilerUtils::isConstant<double>(v); p.first) { out = p.second; return true; }
+    if (auto p = CompilerUtils::isConstant<float>(v); p.first)  { out = static_cast<double>(p.second); return true; }
+    if (auto p = CompilerUtils::isConstant<int64_t>(v); p.first){ out = static_cast<double>(p.second); return true; }
+    if (auto p = CompilerUtils::isConstant<int32_t>(v); p.first){ out = static_cast<double>(p.second); return true; }
+    if (auto p = CompilerUtils::isConstant<int8_t>(v); p.first) { out = static_cast<double>(p.second); return true; }
+    if (auto p = CompilerUtils::isConstant<uint64_t>(v); p.first){ out = static_cast<double>(p.second); return true; }
+    if (auto p = CompilerUtils::isConstant<uint32_t>(v); p.first){ out = static_cast<double>(p.second); return true; }
+    if (auto p = CompilerUtils::isConstant<uint8_t>(v); p.first) { out = static_cast<double>(p.second); return true; }
+    return false;
 }
 
 std::vector<int64_t> daphne::FillOp::inferMncSketchId() {
     auto *reg = getActiveMncSketchRegistry();
     if (reg == nullptr) {
-        return {-1};
+        return {UNKNOWN_SKETCH_ID};
     }
-    std::pair value = CompilerUtils::isConstant<double>(getArg());
-    std::pair numRows = CompilerUtils::isConstant<ssize_t>(getNumRows());
-    std::pair numCols = CompilerUtils::isConstant<ssize_t>(getNumCols());
+    auto numRows = CompilerUtils::isConstant<ssize_t>(getNumRows());
+    auto numCols = CompilerUtils::isConstant<ssize_t>(getNumCols());
+    if (!numRows.first || !numCols.first)
+        return {UNKNOWN_SKETCH_ID};
+
+    double val;
+    if (!getConstAsDouble(getArg(), val))
+        return {UNKNOWN_SKETCH_ID};
+
     MncSketch hC = buildMncFromFill(
-        value.first ? value.second : 0.0,
-        numRows.first ? static_cast<std::size_t>(numRows.second) : 0,
-        numCols.first ? static_cast<std::size_t>(numCols.second) : 0
+        val,
+        static_cast<std::size_t>(numRows.second),
+        static_cast<std::size_t>(numCols.second)
     );
+
     return {reg->store(std::move(hC))};
 }
 
 std::vector<int64_t> daphne::SeqOp::inferMncSketchId() {
     auto *reg = getActiveMncSketchRegistry();
-    if (reg == nullptr) {
-        return {-1};
-    }
-    std::pair from = CompilerUtils::isConstant<ssize_t>(getFrom());
-    std::pair to = CompilerUtils::isConstant<ssize_t>(getTo());
-    std::pair inc = CompilerUtils::isConstant<double>(getInc());
+    if (!reg)
+        return {UNKNOWN_SKETCH_ID};
+
+    auto from = CompilerUtils::isConstant<ssize_t>(getFrom());
+    auto to   = CompilerUtils::isConstant<ssize_t>(getTo());
+
+    double inc;
+    if (!from.first || !to.first || !getConstAsDouble(getInc(), inc))
+        return {UNKNOWN_SKETCH_ID};
+
     MncSketch hC = buildMncFromSeq(
-        from.first ? static_cast<std::size_t>(from.second) : 0,
-        to.first ? static_cast<std::size_t>(to.second) : 0,
-        inc.first ? inc.second : 1.0
+        static_cast<double>(from.second),
+        static_cast<double>(to.second),
+        static_cast<double>(inc)
     );
+
     return {reg->store(std::move(hC))};
 }
 
 std::vector<int64_t> daphne::MatMulOp::inferMncSketchId() {
     auto *reg = getActiveMncSketchRegistry();
     if (!reg)
-        return {-1};
+        return {UNKNOWN_SKETCH_ID};
 
     auto lhsTy = llvm::dyn_cast<daphne::MatrixType>(getLhs().getType());
     auto rhsTy = llvm::dyn_cast<daphne::MatrixType>(getRhs().getType());
@@ -121,12 +150,12 @@ std::vector<int64_t> daphne::MatMulOp::inferMncSketchId() {
     auto lhsId = lhsTy.getMncSketchId();
     auto rhsId = rhsTy.getMncSketchId();
     if (lhsId == -1 || rhsId == -1) {
-        return {-1};
+        return {UNKNOWN_SKETCH_ID};
     }
     const MncSketch *hA = reg->get(lhsId);
     const MncSketch *hB = reg->get(rhsId);
     if (hA == nullptr || hB == nullptr) {
-        return {-1};
+        return {UNKNOWN_SKETCH_ID};
     }
     MncSketch hC = propagateMM(*hA, *hB);
     return {reg->store(std::move(hC))};
@@ -135,43 +164,55 @@ std::vector<int64_t> daphne::MatMulOp::inferMncSketchId() {
 std::vector<int64_t> daphne::TransposeOp::inferMncSketchId() {
     auto *reg = getActiveMncSketchRegistry();
     if (reg == nullptr) {
-        return {-1};
+        return {UNKNOWN_SKETCH_ID};
     }
     auto mt = llvm::dyn_cast<daphne::MatrixType>(getArg().getType());
     auto id = mt.getMncSketchId();
     if (id != -1) {
         const MncSketch *hA = reg->get(id);
         if (hA == nullptr) {
-            return {-1};
+            return {UNKNOWN_SKETCH_ID};
         }
         MncSketch hC = propagateTranspose(*hA);
         return {reg->store(std::move(hC))};
     }
-    return {-1};
+    return {UNKNOWN_SKETCH_ID};
 }
 std::vector<int64_t> daphne::ReshapeOp::inferMncSketchId() {
-    auto *reg = getActiveMncSketchRegistry();
-    if (reg == nullptr) {
-        return {-1};
-    }
+    auto *reg = daphne::getActiveMncSketchRegistry();
+    if (!reg)
+        return {daphne::UNKNOWN_SKETCH_ID};
+
     auto mt = llvm::dyn_cast<daphne::MatrixType>(getArg().getType());
+    if (!mt)
+        return {daphne::UNKNOWN_SKETCH_ID};
+
     auto id = mt.getMncSketchId();
-    std::pair numRows = CompilerUtils::isConstant<ssize_t>(getNumRows());
-    std::pair numCols = CompilerUtils::isConstant<ssize_t>(getNumCols());
-    if (id != -1) {
-        const MncSketch *hA = reg->get(id);
-        if (hA == nullptr) {
-            return {-1};
-        }
-        MncSketch hC = propagateMncFromReshape(*hA, numRows.first ? static_cast<std::size_t>(numRows.second) : 0, numCols.first ? static_cast<std::size_t>(numCols.second) : 0);
-        return {reg->store(std::move(hC))};
-    }
-    return {-1};
+    if (id == daphne::UNKNOWN_SKETCH_ID)
+        return {daphne::UNKNOWN_SKETCH_ID};
+
+    auto numRows = CompilerUtils::isConstant<ssize_t>(getNumRows());
+    auto numCols = CompilerUtils::isConstant<ssize_t>(getNumCols());
+    if (!numRows.first || !numCols.first)
+        return {daphne::UNKNOWN_SKETCH_ID};
+
+    const MncSketch *hA = reg->get(id);
+    if (!hA)
+        return {daphne::UNKNOWN_SKETCH_ID};
+
+    MncSketch hC = propagateMncFromReshape(
+        *hA,
+        static_cast<std::size_t>(numRows.second),
+        static_cast<std::size_t>(numCols.second)
+    );
+
+    return {reg->store(std::move(hC))};
 }
+
 std::vector<int64_t> daphne::MatrixConstantOp::inferMncSketchId() {
     auto p = CompilerUtils::isConstant<uint64_t>(getMatrixAddr());
     if (!p.first)
-        return {-1};
+        return {daphne::UNKNOWN_SKETCH_ID};
 
     const uint64_t matrixAddr = p.second;
     Type vt = CompilerUtils::getValueType(getResult().getType());
@@ -193,14 +234,14 @@ std::vector<int64_t> daphne::MatrixConstantOp::inferMncSketchId() {
     if (vt.isUnsignedInteger(8))
         return {buildAndStoreSketch<uint8_t>(matrixAddr)};
 
-    return {-1};
+    return {daphne::UNKNOWN_SKETCH_ID};
 }
 
 // elementwise
 std::vector<int64_t> daphne::EwAddOp::inferMncSketchId() {
     auto *reg = daphne::getActiveMncSketchRegistry();
     if (!reg)
-        return {-1};
+        return {daphne::UNKNOWN_SKETCH_ID};
 
     Value lhs = getLhs();
     Value rhs = getRhs();
@@ -208,61 +249,50 @@ std::vector<int64_t> daphne::EwAddOp::inferMncSketchId() {
     auto lhsMt = llvm::dyn_cast<daphne::MatrixType>(lhs.getType());
     auto rhsMt = llvm::dyn_cast<daphne::MatrixType>(rhs.getType());
 
-    // -------------------------
     // Case 1: matrix + matrix
-    // -------------------------
     if (lhsMt && rhsMt) {
         auto lhsId = lhsMt.getMncSketchId();
         auto rhsId = rhsMt.getMncSketchId();
-        if (lhsId == -1 || rhsId == -1)
-            return {-1};
+        if (lhsId == daphne::UNKNOWN_SKETCH_ID || rhsId == daphne::UNKNOWN_SKETCH_ID)
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         const MncSketch *hA = reg->get(lhsId);
         const MncSketch *hB = reg->get(rhsId);
         if (!hA || !hB)
-            return {-1};
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         MncSketch hC = propagateAdd(*hA, *hB);
         return {reg->store(std::move(hC))};
     }
 
-    // -------------------------
     // Case 2: matrix + scalar (either side)
-    // -------------------------
     if (lhsMt || rhsMt) {
         Value matVal = lhsMt ? lhs : rhs;
         Value scaVal = lhsMt ? rhs : lhs;
 
         auto matTy = llvm::dyn_cast<daphne::MatrixType>(matVal.getType());
         auto matId = matTy.getMncSketchId();
-        if (matId == -1)
-            return {-1};
+        if (matId == daphne::UNKNOWN_SKETCH_ID)
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         const MncSketch *hA = reg->get(matId);
         if (!hA)
-            return {-1};
+            return {daphne::UNKNOWN_SKETCH_ID};
 
-        // Scalar must be constant to infer anything useful
-        auto cst = CompilerUtils::isConstant<double>(scaVal);
-        if (!cst.first)
-            return {-1};
-
-        const double s = cst.second;
+        double s;
+        if (!getConstAsDouble(scaVal, s))
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         if (s == 0.0) {
-            // Adding 0 does not change non-zero pattern → reuse same sketch id.
-            return {matId};
+            return {matId}; // adding 0 doesn't change pattern
         } else {
-            // Conservative: adding non-zero can turn zeros into non-zeros → dense.
+            // Conservative: densify
             MncSketch hC = buildMncFromRand(hA->m, hA->n, 1.0, 0);
             return {reg->store(std::move(hC))};
         }
     }
 
-    // -------------------------
-    // Case 3: scalar + scalar
-    // -------------------------
-    return {-1};
+    return {daphne::UNKNOWN_SKETCH_ID};
 }
 
 std::vector<int64_t> daphne::EwSubOp::inferMncSketchId() {
@@ -312,11 +342,9 @@ std::vector<int64_t> daphne::EwSubOp::inferMncSketchId() {
             return {-1};
 
         // Need constant scalar to infer anything
-        auto cst = CompilerUtils::isConstant<double>(scaVal);
-        if (!cst.first)
-            return {-1};
-
-        const double s = cst.second;
+        double s;
+        if (!getConstAsDouble(scaVal, s))
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         if (s == 0.0) {
             // matrix - 0  OR  0 - matrix : nonzero pattern stays the same as matrix (ignoring sign)
@@ -379,11 +407,9 @@ std::vector<int64_t> daphne::EwMulOp::inferMncSketchId() {
             return {-1};
 
         // Need constant scalar to refine. If unknown, safest is unknown.
-        auto cst = CompilerUtils::isConstant<double>(scaVal);
-        if (!cst.first)
-            return {-1};
-
-        const double c = cst.second;
+        double c;
+        if (!getConstAsDouble(scaVal, c))
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         if (c == 0.0) {
             // Result is all zeros
@@ -447,11 +473,9 @@ std::vector<int64_t> daphne::EwDivOp::inferMncSketchId() {
             return {-1};
 
         // Need constant scalar to refine. If unknown, safest is unknown.
-        auto cst = CompilerUtils::isConstant<double>(scaVal);
-        if (!cst.first)
-            return {-1};
-
-        const double c = cst.second;
+        double c;
+        if (!getConstAsDouble(scaVal, c))
+            return {daphne::UNKNOWN_SKETCH_ID};
 
         if (c == 0.0) {
             // Result is all zeros
