@@ -100,3 +100,6 @@ MncSketch propagateMM(const MncSketch &hA, const MncSketch &hB);
 // ----------------------------------------------------------------------------
 MncSketch propagateChain(const std::vector<MncSketch> &chain);
 
+MncSketch propagateAdd(const MncSketch &A, const MncSketch &B);
+
+MncSketch propagateMul(const MncSketch &A, const MncSketch &B);

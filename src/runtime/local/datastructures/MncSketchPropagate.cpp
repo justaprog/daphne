@@ -159,3 +159,74 @@ MncSketch propagateChain(const std::vector<MncSketch> &chain) {
     return currentResult;
 }
 
+MncSketch propagateAdd(const MncSketch &A, const MncSketch &B) {
+    MncSketch C;
+    C.m = A.m;
+    C.n = A.n;
+    C.hr = std::make_shared<std::vector<uint32_t>>(C.m, 0);
+    C.hc = std::make_shared<std::vector<uint32_t>>(C.n, 0);
+
+    double sparsity = estimateSparsity_ElementWiseAddition(A, B);
+    double targetNNZ = sparsity * C.m * C.n;
+
+    double totalRowA = std::accumulate(A.hr->begin(), A.hr->end(), 0U);
+    double totalRowB = std::accumulate(B.hr->begin(), B.hr->end(), 0U);
+    double totalColA = std::accumulate(A.hc->begin(), A.hc->end(), 0U);
+    double totalColB = std::accumulate(B.hc->begin(), B.hc->end(), 0U);
+
+    double lambda_r = (totalRowA * totalRowB > 0) ? targetNNZ / (totalRowA * totalRowB) : 0.0;
+    double lambda_c = (totalColA * totalColB > 0) ? targetNNZ / (totalColA * totalColB) : 0.0;
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    propagateVector(*A.hr, *C.hr, 0.0, C.nnzRows, C.maxHr, C.rowsEq1, C.rowsGtHalf, C.n / 2, gen);
+    for (size_t i = 0; i < C.m; ++i) {
+        double val = (*A.hr)[i] + (*B.hr)[i] - (*A.hr)[i] * (*B.hr)[i] * lambda_c;
+        (*C.hr)[i] = std::floor(val) + ((val - std::floor(val)) > std::uniform_real_distribution<>(0,1)(gen) ? 1 : 0);
+    }
+
+    propagateVector(*A.hc, *C.hc, 0.0, C.nnzCols, C.maxHc, C.colsEq1, C.colsGtHalf, C.m / 2, gen);
+    for (size_t j = 0; j < C.n; ++j) {
+        double val = (*A.hc)[j] + (*B.hc)[j] - (*A.hc)[j] * (*B.hc)[j] * lambda_r;
+        (*C.hc)[j] = std::floor(val) + ((val - std::floor(val)) > std::uniform_real_distribution<>(0,1)(gen) ? 1 : 0);
+    }
+
+    return C;
+}
+
+MncSketch propagateMul(const MncSketch &A, const MncSketch &B) {
+    MncSketch C;
+    C.m = A.m;
+    C.n = A.n;
+    C.hr = std::make_shared<std::vector<uint32_t>>(C.m, 0);
+    C.hc = std::make_shared<std::vector<uint32_t>>(C.n, 0);
+
+    double sparsity = estimateSparsity_ElementWiseMultiplication(A, B);
+    double targetNNZ = sparsity * C.m * C.n;
+
+    double totalRowA = std::accumulate(A.hr->begin(), A.hr->end(), 0U);
+    double totalRowB = std::accumulate(B.hr->begin(), B.hr->end(), 0U);
+    double totalColA = std::accumulate(A.hc->begin(), A.hc->end(), 0U);
+    double totalColB = std::accumulate(B.hc->begin(), B.hc->end(), 0U);
+
+    double lambda_r = (totalRowA * totalRowB > 0) ? targetNNZ / (totalRowA * totalRowB) : 0.0;
+    double lambda_c = (totalColA * totalColB > 0) ? targetNNZ / (totalColA * totalColB) : 0.0;
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    propagateVector(*A.hr, *C.hr, 0.0, C.nnzRows, C.maxHr, C.rowsEq1, C.rowsGtHalf, C.n / 2, gen);
+    for (size_t i = 0; i < C.m; ++i) {
+        double val = (*A.hr)[i] * (*B.hr)[i] * lambda_c;
+        (*C.hr)[i] = std::floor(val) + ((val - std::floor(val)) > std::uniform_real_distribution<>(0,1)(gen) ? 1 : 0);
+    }
+
+    propagateVector(*A.hc, *C.hc, 0.0, C.nnzCols, C.maxHc, C.colsEq1, C.colsGtHalf, C.m / 2, gen);
+    for (size_t j = 0; j < C.n; ++j) {
+        double val = (*A.hc)[j] * (*B.hc)[j] * lambda_r;
+        (*C.hc)[j] = std::floor(val) + ((val - std::floor(val)) > std::uniform_real_distribution<>(0,1)(gen) ? 1 : 0);
+    }
+
+    return C;
+}

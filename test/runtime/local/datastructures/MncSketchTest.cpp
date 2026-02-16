@@ -940,3 +940,73 @@ TEST_CASE("Source Operations & Memory Benchmark", TAG_DATASTRUCTURES) {
     size_t mem = getMncSizeBytes(hRand);
     CHECK(mem > 16000);
 }
+
+TEST_CASE("Propagate element-wise addition", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    MncSketch hC = propagateAdd(hA, hB);
+
+    double totalNNZ = 0.0;
+    for (uint32_t val : *hC.hr) totalNNZ += val;
+    double sparsity = totalNNZ / (hC.m * hC.n);
+    std::cout << "Propagated addition sparsity: " << sparsity << std::endl;
+
+    REQUIRE(sparsity >= 0.0);
+    REQUIRE(sparsity <= 1.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Propagate element-wise multiplication", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    MncSketch hC = propagateMul(hA, hB);
+
+    double totalNNZ = 0.0;
+    for (uint32_t val : *hC.hr) totalNNZ += val;
+    double sparsity = totalNNZ / (hC.m * hC.n);
+    std::cout << "Propagated multiplication sparsity: " << sparsity << std::endl;
+
+    REQUIRE(sparsity >= 0.0);
+    REQUIRE(sparsity <= 1.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
