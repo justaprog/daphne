@@ -283,6 +283,8 @@ MncSketch propagateChain(const std::vector<MncSketch> &chain) {
     return currentResult;
 }
 
+/*Element-wise Addition propagation (see section 4.2 from "MNC: Structure-Exploiting Sparsity Estimation for
+Matrix Expressions" paper)*/
 MncSketch propagateAdd(const MncSketch &A, const MncSketch &B) {
     MncSketch C;
     C.m = A.m;
@@ -318,7 +320,8 @@ MncSketch propagateAdd(const MncSketch &A, const MncSketch &B) {
 
     return C;
 }
-
+/*Element-wise Multiplication propagation (see section 4.2 from "MNC: Structure-Exploiting Sparsity Estimation for
+Matrix Expressions" paper)*/
 MncSketch propagateMul(const MncSketch &A, const MncSketch &B) {
     MncSketch C;
     C.m = A.m;

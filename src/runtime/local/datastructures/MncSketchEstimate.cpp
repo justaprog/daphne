@@ -101,7 +101,6 @@ double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB) {
     // Case 1: Exact count
     if(hA.maxHr <= 1 || hB.maxHc <= 1) {
         for(std::size_t j = 0; j < hA.n; ++j)
-            // FIX: Dereference pointers (*h.vec)[index]
             exact_nnz += static_cast<std::size_t>((*hA.hc)[j]) * static_cast<std::size_t>((*hB.hr)[j]);
     }
 
@@ -111,12 +110,10 @@ double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB) {
         // Fused (Exact Part 1 + Exact Part 2)
         for(std::size_t k = 0; k < hA.n; ++k) {
             // Term 1: hA^ec * hB^r
-            // Changes (Abdullah)
             exact_nnz += static_cast<std::size_t>((*hA.hec)[k]) * static_cast<std::size_t>((*hB.hr)[k]);
 
             // Term 2: hB^er * (hA^c - hA^ec)
             // Check to ensure positive result before subtraction
-            // Changes (Abdullah)
             if ((*hA.hc)[k] > (*hA.hec)[k]) {
                 exact_nnz += static_cast<std::size_t>((*hB.her)[k]) * (static_cast<std::size_t>((*hA.hc)[k]) - static_cast<std::size_t>((*hA.hec)[k]));
             }
@@ -128,19 +125,17 @@ double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB) {
         if(p > 0) {
             std::vector<uint32_t> hcA_res;
             std::vector<uint32_t> hrB_res;
-            // Pre-allocate memory for speed
+            // Pre-allocate memory 
             hcA_res.reserve(hA.n);
             hrB_res.reserve(hB.m);
 
             for(std::size_t j = 0; j < hA.n; ++j) {
-                // Changes (Abdullah)
                 std::uint32_t hcA_val = static_cast<std::uint32_t>((*hA.hc)[j]);
                 // Safety check to ensure we don't underflow if something is wrong
                 std::uint32_t sub = static_cast<std::uint32_t>((*hA.hec)[j]);
                 hcA_res.push_back((hcA_val > sub) ? (hcA_val - sub) : 0);
             }
             for(std::size_t i = 0; i < hB.m; ++i) {
-                // Changes (Abdullah)
                 std::uint32_t hrB_val = static_cast<std::uint32_t>((*hB.hr)[i]);
                 std::uint32_t sub = static_cast<std::uint32_t>((*hB.her)[i]);
                 hrB_res.push_back((hrB_val > sub) ? (hrB_val - sub) : 0);
@@ -154,7 +149,6 @@ double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB) {
     else {
         std::size_t p = hA.nnzRows * hB.nnzCols;
         if(p > 0) {
-            // Changes (Abdullah)
             double dens = EdmDensity(*hA.hc, *hB.hr, p);
             prob_nnz = dens * static_cast<double>(p);
         }
@@ -172,6 +166,13 @@ double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB) {
    return totalNNZ / static_cast<double>(m * l);
 }
 
+/** This implementation of estimate Sparsity for element-wise
+addition and multiplication follows the paper 
+"MNC: Structure-Exploiting Sparsity Estimation for
+Matrix Expressions" section 4.1 
+*/
+
+//nnzOverlap returns Lambda = (sum_j hcA[j] * hcB[j])/ (nnz(A) * nnz(B))
 double nnzOverlap(const MncSketch &hA, const MncSketch &hB) { 
     // Compute nnz(A) and nnz(B) 
     uint64_t nnzA = 0; 
@@ -199,6 +200,9 @@ double nnzOverlap(const MncSketch &hA, const MncSketch &hB) {
     return static_cast<double>(numerator / denom); 
 }
 
+/*     
+* Estimate sparsity of C = A + B (element-wise addition)
+*/
 double estimateSparsity_ElementWiseAddition(const MncSketch &hA, const MncSketch &hB) { 
     const std::size_t m = hA.m;
     const std::size_t n = hA.n;
@@ -219,6 +223,9 @@ double estimateSparsity_ElementWiseAddition(const MncSketch &hA, const MncSketch
     return static_cast<double>(s); 
 }
 
+/*     
+* Estimate sparsity of C = A ⊙ B (element-wise multiplication)
+*/
 double estimateSparsity_ElementWiseMultiplication(const MncSketch &hA, const MncSketch &hB) {
     const std::size_t m = hA.m;
     const std::size_t n = hA.n;

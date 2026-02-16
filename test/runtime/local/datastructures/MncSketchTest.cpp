@@ -268,7 +268,7 @@ TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
     const size_t nnzA     = 3;
 
     CSRMatrix<ValueType> *A = 
-        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsA, numColsA, nnzA, /*zero=*/true);
+        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsA, numColsA, nnzA, true);
 
     ValueType *valuesA    = A->getValues();
     size_t   *colIdxsA    = A->getColIdxs();
@@ -295,7 +295,7 @@ TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
     const size_t nnzB     = 3;
 
     CSRMatrix<ValueType> *B = 
-        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsB, numColsB, nnzB, /*zero=*/true);
+        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsB, numColsB, nnzB, true);
 
     ValueType *valuesB    = B->getValues();
     size_t   *colIdxsB    = B->getColIdxs();
@@ -328,64 +328,24 @@ TEST_CASE("Case 1: maxHr(A) <= 1 or maxHr(B) <= 1", TAG_DATASTRUCTURES) {
 }
 
 TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
-    using ValueType = double;
-
     // --- Matrix A: 3x3 ---
     // [1 1 0]
     // [0 1 1]
     // [0 0 1]
-    const size_t numRowsA = 3;
-    const size_t numColsA = 3;
-    const size_t nnzA     = 5;
-    CSRMatrix<ValueType> *A = 
-        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsA, numColsA, nnzA, true);
-
-    size_t *rowOffsetsA = A->getRowOffsets();
-    size_t *colIdxsA    = A->getColIdxs();
-    ValueType *valuesA  = A->getValues();
-
-    rowOffsetsA[0] = 0;
-    rowOffsetsA[1] = 2; 
-    rowOffsetsA[2] = 4; 
-    rowOffsetsA[3] = 5; 
-
-    colIdxsA[0] = 0;
-    colIdxsA[1] = 1;
-    colIdxsA[2] = 1; 
-    colIdxsA[3] = 2;
-    colIdxsA[4] = 2; 
-
-    for(size_t i = 0; i < nnzA; i++) valuesA[i] = 1.0;
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {1,1,0,
+                                                    0,1,1,
+                                                    0,0,1});
 
     // --- Matrix B: 3x3 ---
     // [1 0 0]
     // [1 1 0]
     // [0 1 1]
-    const size_t numRowsB = 3;
-    const size_t numColsB = 3;
-    const size_t nnzB     = 5;
-    CSRMatrix<ValueType> *B = 
-        DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsB, numColsB, nnzB, true);
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {1,0,0,
+                                                    1,1,0,
+                                                    0,1,1});
 
-    size_t *rowOffsetsB = B->getRowOffsets();
-    size_t *colIdxsB    = B->getColIdxs();
-    ValueType *valuesB  = B->getValues();
-
-    rowOffsetsB[0] = 0;
-    rowOffsetsB[1] = 1;
-    rowOffsetsB[2] = 3;
-    rowOffsetsB[3] = 5;
-
-    colIdxsB[0] = 0; 
-    colIdxsB[1] = 0;
-    colIdxsB[2] = 1; 
-    colIdxsB[3] = 1;
-    colIdxsB[4] = 2; 
-
-    for(size_t i = 0; i < nnzB; i++) valuesB[i] = 1.0;
-
-    MncSketch hA = buildMncFromCsrMatrix(*A);
-    MncSketch hB = buildMncFromCsrMatrix(*B);
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
 
     double s = estimateSparsity_product(hA, hB);
 
@@ -397,8 +357,8 @@ TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
     // REQUIRE(p == 4);           
     // REQUIRE(s == 5);
 
-    DataObjectFactory::destroy(A);
-    DataObjectFactory::destroy(B);
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
 }
 
 TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTURES) {
@@ -486,60 +446,24 @@ TEST_CASE("Case 1: Exact Propagation (Diagonal Matrix)", TAG_DATASTRUCTURES) {
     very small rounding error, then that would mean that our logic is false.
     We expect that the output sketch must be a match of matrix B.
     */
-    using ValueType = double;
 
     // Matrix A: 3x3 Identity (Diagonal)
     // [1 0 0]
     // [0 1 0]
     // [0 0 1]
-    const size_t numRowsA = 3;
-    const size_t numColsA = 3;
-    const size_t nnzA     = 3;
-
-    CSRMatrix<ValueType> *A =   DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsA, numColsA, nnzA, /*zero=*/true);
-    ValueType *valuesA    = A->getValues();
-    size_t   *colIdxsA    = A->getColIdxs();
-    size_t   *rowOffsetsA = A->getRowOffsets();
-
-    rowOffsetsA[0] = 0; 
-    rowOffsetsA[1] = 1; 
-    rowOffsetsA[2] = 2; 
-    rowOffsetsA[3] = 3;
-
-    colIdxsA[0] = 0; 
-    colIdxsA[1] = 1; 
-    colIdxsA[2] = 2;
-
-    valuesA[0] = 1.0; 
-    valuesA[1] = 1.0; 
-    valuesA[2] = 1.0;
+    auto A = genGivenVals<DenseMatrix<double>>(3, {1,1,0,
+                                                    0,1,1,
+                                                    0,0,1});
 
     // Matrix B: 3x3 Sparse
     // [1 0 0]
     // [1 1 0]
     // [0 0 0]
-    const size_t numRowsB = 3;
-    const size_t numColsB = 3;
-    const size_t nnzB     = 3;
-
-    CSRMatrix<ValueType> *B =   DataObjectFactory::create<CSRMatrix<ValueType>>(numRowsB, numColsB, nnzB, /*zero=*/true);
-    ValueType *valuesB    = B->getValues();
-    size_t   *colIdxsB    = B->getColIdxs();
-    size_t   *rowOffsetsB = B->getRowOffsets();
-
-    rowOffsetsB[0] = 0; 
-    rowOffsetsB[1] = 1; 
-    rowOffsetsB[2] = 3; 
-    rowOffsetsB[3] = 3;
-    colIdxsB[0] = 0; 
-    colIdxsB[1] = 0; 
-    colIdxsB[2] = 1;
-    valuesB[0] = 1.0; 
-    valuesB[1] = 1.0; 
-    valuesB[2] = 1.0;
-
-    MncSketch hA = buildMncFromCsrMatrix(*A);
-    MncSketch hB = buildMncFromCsrMatrix(*B);
+    auto B = genGivenVals<DenseMatrix<double>>(3, {1,1,0,
+                                                    0,1,1,
+                                                    0,0,1});
+    MncSketch hA = buildMncFromDenseMatrix(*A);
+    MncSketch hB = buildMncFromDenseMatrix(*B);
 
     MncSketch hC = propagateMM(hA, hB);
 
@@ -970,7 +894,7 @@ TEST_CASE("Propagate element-wise addition", TAG_DATASTRUCTURES) {
     double totalNNZ = 0.0;
     for (uint32_t val : *hC.hr) totalNNZ += val;
     double sparsity = totalNNZ / (hC.m * hC.n);
-    std::cout << "Propagated addition sparsity: " << sparsity << std::endl;
+    // std::cout << "Propagated addition sparsity: " << sparsity << std::endl;
 
     REQUIRE(sparsity >= 0.0);
     REQUIRE(sparsity <= 1.0);
@@ -1002,7 +926,7 @@ TEST_CASE("Propagate element-wise multiplication", TAG_DATASTRUCTURES) {
     double totalNNZ = 0.0;
     for (uint32_t val : *hC.hr) totalNNZ += val;
     double sparsity = totalNNZ / (hC.m * hC.n);
-    std::cout << "Propagated multiplication sparsity: " << sparsity << std::endl;
+    // std::cout << "Propagated multiplication sparsity: " << sparsity << std::endl;
 
     REQUIRE(sparsity >= 0.0);
     REQUIRE(sparsity <= 1.0);
