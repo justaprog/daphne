@@ -1,0 +1,16 @@
+# Final Comparison: New MNC vs Old Naive Method
+r = 5000;
+c = 5000;
+s = 0.01;
+
+A = rand(r, c, 0.0, 1.0, s, 42);
+B = rand(c, r, 0.0, 1.0, s, 24);
+
+# Matrix Multiplication
+C = A @ B;
+
+print("--- EXPERIMENT: Matrix Multiplication 5k x 5k ---");
+print("Old/Naive Method (Predicted): 1.0 (Dense)");
+print("New MNC Method (Predicted): " + sparsity(C));
+print("Actual Measured Sparsity: " + as.f64(sum(C != 0)) / (nrow(C) * ncol(C)));
+print("-------------------------------------------------");
