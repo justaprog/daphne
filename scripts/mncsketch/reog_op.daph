@@ -23,20 +23,24 @@ fill_2 = fill(0.0, 3, 3);
  // rand
 rand_1 = rand(5, 5 , 1.0, 10.0, 0.1, -1);
 
-print("Sparsity seq_1:");
+print("Es.Sparsity seq_1:");
 print(sparsity(seq_1));
+print("Real Sparsity:");
 print(as.f64(sum(seq_1 != 0)) / (nrow(seq_1) * ncol(seq_1)));
 
-print("Sparsity fill_1:");
+print("Es. Sparsity fill_1:");
 print(sparsity(fill_1));
+print("Real Sparsity:");
 print(as.f64(sum(fill_1 != 0)) / (nrow(fill_1) * ncol(fill_1)));
 
-print("Sparsity fill_2:");
+print("Es. Sparsity fill_2:");
 print(sparsity(fill_2));
+print("Real Sparsity:");
 print(as.f64(sum(fill_2 != 0)) / (nrow(fill_2) * ncol(fill_2)));
 
-print("Sparsity rand_1:");
+print("Es. Sparsity rand_1:");
 print(sparsity(rand_1));
+print("Real Sparsity:");
 print(as.f64(sum(rand_1 != 0)) / (nrow(rand_1) * ncol(rand_1)));
 
 write(seq_1, $SEQ_1);
