@@ -203,7 +203,8 @@ FileMetaData MetaDataParser::readMetaDataFromString(const std::string &str) {
         if (keyExists(jf, JsonKeys::VALUE_TYPE)) {
             ValueTypeCode vtc = jf.at(JsonKeys::VALUE_TYPE).get<ValueTypeCode>();
             FileMetaData md(numRows, numCols, isSingleValueType, vtc, numNonZeros, hdfs);
-            md.mncSketch = std::move(mnc);
+            if (mnc.has_value())
+                md.mncSketch = std::move(mnc);
             return md;
         } else {
             throw std::invalid_argument("A (matrix) meta data JSON file should contain the \"" + JsonKeys::VALUE_TYPE +
@@ -231,7 +232,8 @@ FileMetaData MetaDataParser::readMetaDataFromString(const std::string &str) {
                 labels.emplace_back(column.getLabel());
             }
             FileMetaData md(numRows, numCols, isSingleValueType, schema, labels, numNonZeros, hdfs);
-            md.mncSketch = std::move(mnc);
+            if (mnc.has_value())
+                md.mncSketch = std::move(mnc);
             return md;
         } else {
             throw std::invalid_argument("A (frame) meta data JSON file should contain the \"" + JsonKeys::SCHEMA +
@@ -279,7 +281,6 @@ std::string MetaDataParser::writeMetaDataToString(const FileMetaData &metaData) 
         writeMncSketchToJson(json, *metaData.mncSketch);
     }
 
-    
     return json.dump();
 }
 void MetaDataParser::writeMetaData(const std::string &filename_, const FileMetaData &metaData) {
