@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// run: bin/daphne --explain property_inference scripts/mncsketch/reog_op.daph T_C=\"./data/test/t_c.csv\"
+// run: bin/daphne --explain property_inference scripts/mncsketch/reog_op.daph T_C=\"./data/test/t_c.csv\" C_RESHAPE=\"./data/test/c_reshape.csv\"
+//  
 
 // transpose
 c = [0,0,0,0,0,0,0,1,0,
@@ -30,6 +31,13 @@ c = [0,0,0,0,0,0,0,1,0,
 t_c = t(c);
 print(sparsity(c));
 print(sparsity(t_c));
-print("It should print True");
+print("It should print True or 1");
 print(sparsity(c) == sparsity(t_c));
 writeMatrix(t_c, $T_C);
+
+// reshape
+c_reshape = reshape(c,27,3);
+print(sparsity(c_reshape));
+print("It should print True or 1");
+print(sparsity(c) == sparsity(c_reshape));
+writeMatrix(c_reshape, $C_RESHAPE);
