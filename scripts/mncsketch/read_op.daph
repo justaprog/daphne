@@ -15,7 +15,7 @@
  */
 
 // bin/daphne --explain property_inference scripts/mncsketch/read_op.daph C=\"./data/outm1.csv\" O=\"./data/test/read_1.csv\" 
-// works 
+// all works 
 
 read_1 = readMatrix($C);
 

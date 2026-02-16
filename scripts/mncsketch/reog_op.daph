@@ -14,35 +14,22 @@
  * limitations under the License.
  */
 
-// bin/daphne --explain property_inference scripts/mncsketch/reog_op.daph SEQ_1=\"./data/test/seq_1.csv\" FILL_1=\"./data/test/fill_1.csv\" RAND_1=\"./data/test/rand_1.csv\"
-// seq
-seq_1 = seq(0,6,1);
- // fill
-fill_1 = fill(1.0, 3, 3);
-fill_2 = fill(0.0, 3, 3);
- // rand
-rand_1 = rand(5, 5 , 1.0, 10.0, 0.1, -1);
+// run: bin/daphne --explain property_inference scripts/mncsketch/reog_op.daph T_C=\"./data/test/t_c.csv\"
 
-print("Es.Sparsity seq_1:");
-print(sparsity(seq_1));
-print("Real Sparsity:");
-print(as.f64(sum(seq_1 != 0)) / (nrow(seq_1) * ncol(seq_1)));
+// transpose
+c = [0,0,0,0,0,0,0,1,0,
+    0,1,0,0,1,0,0,0,0,
+    0,0,0,1,1,1,0,0,0,
+    0,0,0,0,0,0,0,0,0,
+    0,0,1,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,1,0,
+    1,0,0,1,0,0,0,0,0,
+    0,0,1,0,1,0,1,0,0,
+    0,0,0,0,0,0,0,0,1](9,9);
 
-print("Es. Sparsity fill_1:");
-print(sparsity(fill_1));
-print("Real Sparsity:");
-print(as.f64(sum(fill_1 != 0)) / (nrow(fill_1) * ncol(fill_1)));
-
-print("Es. Sparsity fill_2:");
-print(sparsity(fill_2));
-print("Real Sparsity:");
-print(as.f64(sum(fill_2 != 0)) / (nrow(fill_2) * ncol(fill_2)));
-
-print("Es. Sparsity rand_1:");
-print(sparsity(rand_1));
-print("Real Sparsity:");
-print(as.f64(sum(rand_1 != 0)) / (nrow(rand_1) * ncol(rand_1)));
-
-write(seq_1, $SEQ_1);
-write(fill_1, $FILL_1);
-write(rand_1, $RAND_1);
+t_c = t(c);
+print(sparsity(c));
+print(sparsity(t_c));
+print("It should print True");
+print(sparsity(c) == sparsity(t_c));
+writeMatrix(t_c, $T_C);

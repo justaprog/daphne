@@ -14,4 +14,55 @@
  * limitations under the License.
  */
 
- // bin/daphne --explain property_inference scripts/mncsketch/elementwise_op.daph
+// run: bin/daphne --explain property_inference scripts/mncsketch/elementwise_op.daph ADD_M=\"./data/test/add_m.csv\" SUB_M=\"./data/test/sub_m.csv\" MUL_M=\"./data/test/mul_m.csv\"
+// all works correct except for sparsity(div)
+
+m1 = [0,0,0,0,0,0,0,1,0,
+    0,1,0,0,1,0,0,0,0,
+    0,0,0,1,1,1,0,0,0,
+    0,0,0,0,0,0,0,0,0,
+    0,0,1,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,1,0,
+    1,0,0,1,0,0,0,0,0,
+    0,0,1,0,1,0,1,0,0,
+    0,0,0,0,0,0,0,0,1](9,9);
+
+m2 = [2,2,0,0,0,0,0,1,0,
+    0,2,0,0,2,0,0,0,0,
+    0,0,0,2,2,2,0,0,0,
+    0,0,0,0,0,0,0,0,0,
+    0,0,2,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,2,0,
+    2,0,0,2,0,0,0,0,0,
+    0,0,2,0,2,0,2,0,0,
+    0,0,0,0,0,0,0,0,2](9,9);
+
+add_m = m1 + m2;
+sub_m = m1 - m2;
+mul_m = m1 * m2;
+div_m = m1 / m2; 
+
+print("Es. Sparsity add_m:");
+print(sparsity(add_m));
+print("Real Sparsity:");
+print(as.f64(sum(add_m != 0)) / (nrow(add_m) * ncol(add_m)));
+
+print("Es. Sparsity sub_m:");
+print(sparsity(sub_m));
+print("Real Sparsity:");
+print(as.f64(sum(sub_m != 0)) / (nrow(sub_m) * ncol(sub_m)));
+
+print("Es. Sparsity mul_m:");
+print(sparsity(mul_m));
+print("Real Sparsity:");
+print(as.f64(sum(mul_m != 0)) / (nrow(mul_m) * ncol(mul_m)));
+
+print("Es. Sparsity div_m:");
+print(sparsity(div_m));
+print("Real Sparsity:");
+print(as.f64(sum(mul_m != 0)) / (nrow(mul_m) * ncol(mul_m)));
+
+writeMatrix(add_m, $ADD_M);
+writeMatrix(sub_m, $SUB_M);
+writeMatrix(mul_m, $MUL_M);
+// writeMatrix(div_m, $DIV_M);
