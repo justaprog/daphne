@@ -31,6 +31,20 @@ The system will be built up and extended gradually in the course of the project.
 
 - Read our [contribution guidelines](/CONTRIBUTING.md).
 
+
+This section describes the setup and testing for the MNC Sparsity Estimator project. 
+System Specs
+We ran all tests on the following hardware and software:
+Processor: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz.
+Memory: 16.0 GB RAM.
+System Type: 64-bit OS.
+Operating System: Windows 11 Home using WSL (Windows Subsystem for Linux).
+Environment: Run inside a Docker container for consistent results.
+Testing & Results
+Dataset: We used real scientific data from the SuiteSparse Matrix Collection instead of random data.
+Decision Logic: The system uses a 0.25 threshold to decide if a matrix should be stored as SPARSE or DENSE.
+Reliability: The code passed 2,452 unit tests, proving it works safely with the rest of the DAPHNE system.
+
 - Have a look at the [online documentation](https://daphne-eu.github.io/daphne/).
 
 - [Browse open issues](https://github.com/daphne-eu/daphne/issues) (e.g. ["good first issues"](https://github.com/daphne-eu/daphne/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)) or [create a new issue](https://github.com/daphne-eu/daphne/issues/new).
