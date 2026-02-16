@@ -8,6 +8,9 @@
 #include <runtime/local/datastructures/ValueTypeUtils.h>
 
 #include <runtime/local/datastructures/MncSketch.h>
+#include <runtime/local/datastructures/MncSketchBuild.h>
+#include <runtime/local/datastructures/MncSketchEstimate.h>
+#include <runtime/local/datastructures/MncSketchPropagate.h>
 
 #include <tags.h>
 #include <catch.hpp>
@@ -60,8 +63,8 @@ TEST_CASE("MNC sketch from CSRMatrix basic", TAG_DATASTRUCTURES) {
     // row + col nnz
     std::vector<std::uint32_t> expectedHr{1,1,1};
     std::vector<std::uint32_t> expectedHc{1,1,1};
-    CHECK(h.hr == expectedHr);
-    CHECK(h.hc == expectedHc);
+    CHECK(*h.hr == expectedHr);
+    CHECK(*h.hc == expectedHc);
 
     // summary stats
     CHECK(h.maxHr    == 1);
@@ -122,7 +125,7 @@ TEST_CASE("MNC sketch respects CSRMatrix sub-matrix view", TAG_DATASTRUCTURES) {
 
     // each row in the submatrix has exactly 1 nnz
     std::vector<std::uint32_t> expectedHrSub{1,1};
-    CHECK(hSub.hr == expectedHrSub);
+    CHECK(*hSub.hr == expectedHrSub);
     CHECK(hSub.nnzRows == 2);
     CHECK(hSub.rowsEq1 == 2);
 
@@ -194,14 +197,14 @@ TEST_CASE("Build MNC Sketch from csr matrix with example from paper", TAG_DATAST
     // row + col nnz
     std::vector<std::uint32_t> expectedHr{1,2,3,0,1,1,2,3,1};
     std::vector<std::uint32_t> expectedHc{1,1,2,2,3,1,1,2,1};
-    CHECK(h.hr == expectedHr);
-    CHECK(h.hc == expectedHc);
+    CHECK(*h.hr == expectedHr);
+    CHECK(*h.hc == expectedHc);
     // her and hec
     std::vector<std::uint32_t> expectedHer{0,1,1,0,0,0,1,1,1};
     std::vector<std::uint32_t> expectedHec{0,0,1,0,0,0,0,2,1};
     std::vector<std::uint32_t> notexpectedHec{1,1,1,0,0,0,0,2,1};
-    CHECK(h.her == expectedHer);
-    CHECK(h.hec == expectedHec);
+    CHECK(*h.her == expectedHer);
+    CHECK(*h.hec == expectedHec);
 
     DataObjectFactory::destroy(m);
 }
@@ -239,15 +242,15 @@ TEST_CASE("Build MNC Sketch from dense matrix with example from paper", TAG_DATA
     // row + col nnz
     std::vector<std::uint32_t> expectedHr{1,2,3,0,1,1,2,3,1};
     std::vector<std::uint32_t> expectedHc{1,1,2,2,3,1,1,2,1};
-    CHECK(h_dense.hr == expectedHr);
-    CHECK(h_dense.hc == expectedHc);
+    CHECK(*h_dense.hr == expectedHr);
+    CHECK(*h_dense.hc == expectedHc);
 
     // her and hec
     std::vector<std::uint32_t> expectedHer{0,1,1,0,0,0,1,1,1};
     std::vector<std::uint32_t> expectedHec{0,0,1,0,0,0,0,2,1};
     std::vector<std::uint32_t> notexpectedHec{1,1,1,0,0,0,0,2,1};
-    CHECK(h_dense.her == expectedHer);
-    CHECK(h_dense.hec == expectedHec);
+    CHECK(*h_dense.her == expectedHer);
+    CHECK(*h_dense.hec == expectedHec);
     
     DataObjectFactory::destroy(m_dense);
 }
@@ -388,6 +391,7 @@ TEST_CASE("Case 2: some rows/cols have >1 nnz", TAG_DATASTRUCTURES) {
 
     REQUIRE(s >= 0.0);
     REQUIRE(s <= 1.0);
+    // std::cout << "Estimated sparsity: " << s << std::endl;
     // REQUIRE(s == 5);
     // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
     // REQUIRE(p == 4);           
@@ -411,6 +415,7 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     // [1 0 0]
     // [1 1 0]
     // [0 1 1]
+    
 
     auto m_B = genGivenVals<DenseMatrix<double>>(3, {1,0,0,
                                                     1,1,0,
@@ -420,9 +425,9 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     MncSketch hB = buildMncFromDenseMatrix(*m_B);
 
     double s = estimateSparsity_product(hA, hB);
-
-    REQUIRE(s >= 0.0);
-    REQUIRE(s <= 1.0);
+    // nnz in A*B = 7 / 9 = 0.7777
+    REQUIRE(s >= 0.65);
+    REQUIRE(s <= 0.85);
     // REQUIRE(s == 5);
     // std::size_t p = (hA.nnzRows - hA.rowsEq1) * (hB.nnzCols - hB.colsEq1);
     // REQUIRE(p == 4);
@@ -431,6 +436,41 @@ TEST_CASE("Case 3: some rows/cols have >1 nnz for Dense Matrix", TAG_DATASTRUCTU
     DataObjectFactory::destroy(m_A);
     DataObjectFactory::destroy(m_B);
 }
+
+TEST_CASE("Case 4: test estimatsparsity_product using example from paper (Golden Master)", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 (Paper Example) ---
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {
+        0,0,0,0,0,0,0,1,0, 0,1,0,0,1,0,0,0,0, 0,0,0,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,0, 0,0,1,0,0,0,0,0,0, 0,0,0,0,0,0,0,1,0,
+        1,0,0,1,0,0,0,0,0, 0,0,1,0,1,0,1,0,0, 0,0,0,0,0,0,0,0,1
+    });
+
+    // --- Matrix B: 9x10 (Paper Example) ---
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {
+        0,0,0,1,0,0,0,0,0,0, 0,0,0,0,0,0,1,0,0,0, 0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,1,0,0,0,0,0, 0,0,1,0,0,0,1,0,1,0, 0,0,0,0,1,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1,0,0, 0,0,1,0,0,0,0,0,0,0
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_product(hA, hB);
+
+    // --- Exact Verification ---
+    // Exact Hits = 7. Probabilistic Hits = 6.974. Total = 13.974.
+    // Sparsity = 13.974 / 90 ≈ 0.155266
+    double expectedSparsity = 0.155266;
+    
+    // Check strict equality within floating point margin
+    REQUIRE(s == Approx(expectedSparsity).epsilon(0.001));
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+// TODO: Test cases: estimated sparsity should be expected as the paper implementation. 
+// TODO: structural properties: corner cases in the paper 
+
 
 // -----------------------------------------------------------------------------
     /**Propagation Tests
@@ -580,7 +620,7 @@ TEST_CASE("Case 2: Outer Product (Density Blowup)", TAG_DATASTRUCTURES) {
     
     // Check total NNZ roughly matches 9
     uint64_t totalNNZ = 0;
-    for(auto c : hC.hr) totalNNZ += c;
+    for(auto c : *hC.hr) totalNNZ += c;
     REQUIRE(totalNNZ > 0);
 
     DataObjectFactory::destroy(A);
@@ -641,4 +681,332 @@ TEST_CASE("Case 3: Chain Propagation (Dimensions)", TAG_DATASTRUCTURES) {
     DataObjectFactory::destroy(A);
     DataObjectFactory::destroy(B);
     DataObjectFactory::destroy(C);
+
+}
+
+
+// -----------------------------------------------------------------------------
+// Transpose Test
+// -----------------------------------------------------------------------------
+TEST_CASE("Case 5: Transpose Propagation", TAG_DATASTRUCTURES) {
+    using ValueType = double;
+    // Row 0: [1, 0, 0, 0]
+    // Row 1: [0, 2, 3, 0]
+    // Row 2: [0, 0, 0, 4]
+    auto A = genGivenVals<CSRMatrix<ValueType>>(3, {
+        1, 0, 0, 0,
+        0, 2, 3, 0,
+        0, 0, 0, 4
+    });
+
+    MncSketch hA = buildMncFromCsrMatrix(*A);
+    MncSketch hC = propagateTranspose(hA); 
+
+    // 1. Verify Dimensions (Should be swapped)
+    // Input was 3x4 so the  Output should be 4x3
+    CHECK(hC.m == 4);
+    CHECK(hC.n == 3);
+
+    // 2. Verify Swapped Histograms
+    // A.hr was {1, 2, 1}. This should now be C.hc
+    CHECK((*hC.hc)[0] == 1);
+    CHECK((*hC.hc)[1] == 2);
+    CHECK((*hC.hc)[2] == 1);
+
+    // A.hc was {1, 1, 1, 1}. This should now be C.hr
+    CHECK((*hC.hr)[0] == 1);
+    CHECK((*hC.hr)[1] == 1);
+    CHECK((*hC.hr)[2] == 1);
+    CHECK((*hC.hr)[3] == 1);
+
+    // 3. Verify Stats Swapped
+    // A.maxHr was 2. C.maxHc should be 2.
+    CHECK(hC.maxHc == 2);
+    CHECK(hC.maxHr == 1);
+
+    DataObjectFactory::destroy(A);
+}
+
+TEST_CASE("Estimate sparsity for element-wise addition", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseAddition(hA, hB);
+    // std::cout << "Estimated sparsity: " << s << std::endl;
+    
+    REQUIRE(s == Approx(0.5556).epsilon(1e-4));
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Estimate sparsity for element-wise addition (Large)", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 ---
+    // [0,0,0,0,0,0,0,1,0], 
+    // [0,1,0,0,1,0,0,0,0], 
+    // [0,0,0,1,1,1,0,0,0], 
+    // [0,0,0,0,0,0,0,0,0],
+    // [0,0,1,0,0,0,0,0,0],
+    // [0,0,0,0,0,0,0,1,0],
+    // [1,0,0,1,0,0,0,0,0],
+    // [0,0,1,0,1,0,1,0,0],
+    // [0,0,0,0,0,0,0,0,1],
+    
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {0,0,0,0,0,0,0,1,0,
+                                                    0,1,0,0,1,0,0,0,0,
+                                                    0,0,0,1,1,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,
+                                                    0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,
+                                                    1,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,1,0,1,0,0,
+                                                    0,0,0,0,0,0,0,0,1
+    });
+
+    // --- Matrix B: 9x10 ---
+    // [0 0 0 1 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 1 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 1 0 0 0 1 0 1 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 1 0 0]
+    // [0 0 1 0 0 0 0 0 0 0]
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {0,0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,0,0,1,0,1,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,0,
+                                                    0,0,1,0,0,0,0,0,0,0
+    });
+
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseAddition(hA, hB);
+    
+    REQUIRE(s <= 1.0);
+    REQUIRE(s >= 0.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Estimate sparsity for element-wise multiplication", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseMultiplication(hA, hB);
+    std::cout << "Estimated sparsity: " << s << std::endl;
+    
+    REQUIRE(s >= 0.11);
+    REQUIRE(s <= 0.112);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Estimate sparsity for element-wise multiplication (Large)", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 9x9 ---
+    // [0,0,0,0,0,0,0,1,0], 
+    // [0,1,0,0,1,0,0,0,0], 
+    // [0,0,0,1,1,1,0,0,0], 
+    // [0,0,0,0,0,0,0,0,0],
+    // [0,0,1,0,0,0,0,0,0],
+    // [0,0,0,0,0,0,0,1,0],
+    // [1,0,0,1,0,0,0,0,0],
+    // [0,0,1,0,1,0,1,0,0],
+    // [0,0,0,0,0,0,0,0,1],
+    
+    auto m_A = genGivenVals<DenseMatrix<double>>(9, {0,0,0,0,0,0,0,1,0,
+                                                    0,1,0,0,1,0,0,0,0,
+                                                    0,0,0,1,1,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,
+                                                    0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,
+                                                    1,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,1,0,1,0,0,
+                                                    0,0,0,0,0,0,0,0,1
+    });
+
+    // --- Matrix B: 9x10 ---
+    // [0 0 0 1 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 1 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 1 0 0 0 1 0 1 0]
+    // [0 0 0 0 1 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 0 0 0]
+    // [0 0 0 0 0 0 0 1 0 0]
+    // [0 0 1 0 0 0 0 0 0 0]
+    auto m_B = genGivenVals<DenseMatrix<double>>(9, {0,0,0,1,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,1,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,1,0,0,0,1,0,1,0,
+                                                    0,0,0,0,1,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,0,0,0,
+                                                    0,0,0,0,0,0,0,1,0,0,
+                                                    0,0,1,0,0,0,0,0,0,0
+    });
+
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    double s = estimateSparsity_ElementWiseMultiplication(hA, hB);
+    
+    REQUIRE(s <= 1.0);
+    REQUIRE(s >= 0.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+
+
+TEST_CASE("Source Operations & Memory Benchmark", TAG_DATASTRUCTURES) {
+    // 1. Rand Test (Probabilistic)
+    size_t rows = 1000, cols = 1000;
+    double sparsity = 0.1;
+    MncSketch hRand = buildMncFromRand(rows, cols, sparsity, 42);
+    
+    double totalNNZ = 0;
+    for(auto c : *hRand.hr) totalNNZ += c;
+    double expected = rows * cols * sparsity;
+    
+    // Check if generated NNZ is within 10% of expected (100,000 +/- 10,000)
+    CHECK(totalNNZ >= expected * 0.90);
+    CHECK(totalNNZ <= expected * 1.10);
+    CHECK(hRand.m == rows);
+
+    // 2. Fill Test (Constant)
+    MncSketch hFill = buildMncFromFill(5.0, 10, 5);
+    CHECK(hFill.nnzRows == 10);
+    CHECK((*hFill.hr)[0] == 5); 
+
+    // 3. Seq Test (Dense Column Vector)
+    MncSketch hSeq = buildMncFromSeq(1, 10, 1);
+    CHECK(hSeq.m == 10);
+    CHECK(hSeq.n == 1);
+    CHECK((*hSeq.hr)[0] == 1); 
+
+    // 4. Memory Benchmark Test
+    size_t mem = getMncSizeBytes(hRand);
+    CHECK(mem > 16000);
+}
+
+TEST_CASE("Propagate element-wise addition", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    // [1 0 0]
+    // [0 1 1]
+    // [0 0 0]
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    // [0 1 0]
+    // [1 0 0]
+    // [0 0 1]
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    MncSketch hC = propagateAdd(hA, hB);
+
+    double totalNNZ = 0.0;
+    for (uint32_t val : *hC.hr) totalNNZ += val;
+    double sparsity = totalNNZ / (hC.m * hC.n);
+    std::cout << "Propagated addition sparsity: " << sparsity << std::endl;
+
+    REQUIRE(sparsity >= 0.0);
+    REQUIRE(sparsity <= 1.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
+}
+
+TEST_CASE("Propagate element-wise multiplication", TAG_DATASTRUCTURES) {
+    // --- Matrix A: 3x3 ---
+    auto m_A = genGivenVals<DenseMatrix<double>>(3, {
+        1, 0, 0,
+        0, 1, 1,
+        0, 0, 0
+    });
+
+    // --- Matrix B: 3x3 ---
+    auto m_B = genGivenVals<DenseMatrix<double>>(3, {
+        0, 1, 0,
+        1, 0, 0,
+        0, 0, 1
+    });
+
+    MncSketch hA = buildMncFromDenseMatrix(*m_A);
+    MncSketch hB = buildMncFromDenseMatrix(*m_B);
+
+    MncSketch hC = propagateMul(hA, hB);
+
+    double totalNNZ = 0.0;
+    for (uint32_t val : *hC.hr) totalNNZ += val;
+    double sparsity = totalNNZ / (hC.m * hC.n);
+    std::cout << "Propagated multiplication sparsity: " << sparsity << std::endl;
+
+    REQUIRE(sparsity >= 0.0);
+    REQUIRE(sparsity <= 1.0);
+
+    DataObjectFactory::destroy(m_A);
+    DataObjectFactory::destroy(m_B);
 }
