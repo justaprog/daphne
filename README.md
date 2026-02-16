@@ -34,19 +34,3 @@ The system will be built up and extended gradually in the course of the project.
 - Have a look at the [online documentation](https://daphne-eu.github.io/daphne/).
 
 - [Browse open issues](https://github.com/daphne-eu/daphne/issues) (e.g. ["good first issues"](https://github.com/daphne-eu/daphne/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)) or [create a new issue](https://github.com/daphne-eu/daphne/issues/new).
-
-MNC Sparsity Estimator Project (Large Scale Data Engineering
-This section documents the environment and results for the MNC Sparsity Estimator
-1. Experimental Setting
-All experiments were conducted using a Docker container to ensure a consistent environment for library linking and reproducibility.
-Hardware: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz with 16.0 GB RAM.
-OS/Software: Windows 11 Home running through WSL (Windows Subsystem for Linux).
-System Type: 64-bit operating system, x64-based processor.
-2. Metrics
-Dataset: We used real matrices from the SuiteSparse Matrix Collection (e.g., gre__115.mtx) instead of synthetic random data to better reflect real-world distributions.
-Metrics: We measured Accuracy Error (the difference between the MNC estimate and actual sparsity) and Decision Correctness.
-Variance: Because MNC is a probabilistic sketching method, small variations in results between runs are expected and were managed by using mean values for reporting.
-3. Key Results
-Decision Logic: Our implementation uses a 0.25 density threshold. It correctly triggers SPARSE storage for workloads measured below this value and DENSE for those above.
-Reliability: The prototype passed 2,452 unit tests in the DAPHNE Catch2 suite, confirming it integrates safely with the existing system kernels.
-
