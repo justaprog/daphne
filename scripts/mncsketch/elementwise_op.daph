@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// run: bin/daphne --explain property_inference scripts/mncsketch/elementwise_op.daph ADD_M=\"./data/test/add_m.csv\" SUB_M=\"./data/test/sub_m.csv\" MUL_M=\"./data/test/mul_m.csv\"
-// all works correct except for sparsity(div)
+// run: bin/daphne --explain property_inference scripts/mncsketch/elementwise_op.daph ADD_M=\"./data/test/add_m.csv\" SUB_M=\"./data/test/sub_m.csv\" MUL_M=\"./data/test/mul_m.csv\" DIV_M=\"./data/test/div_m.csv\"
+// all works correct except for sparsity(div) err: Floating point exception (core dumped)
 
 m1 = [0,0,0,0,0,0,0,1,0,
     0,1,0,0,1,0,0,0,0,
@@ -57,12 +57,12 @@ print(sparsity(mul_m));
 print("Real Sparsity:");
 print(as.f64(sum(mul_m != 0)) / (nrow(mul_m) * ncol(mul_m)));
 
-print("Es. Sparsity div_m:");
-print(sparsity(div_m));
-print("Real Sparsity:");
-print(as.f64(sum(mul_m != 0)) / (nrow(mul_m) * ncol(mul_m)));
+//print("Es. Sparsity div_m:");
+//print(sparsity(div_m));
+//print("Real Sparsity:");
+//print(as.f64(sum(div_m != 0)) / (nrow(div_m) * ncol(div_m)));
 
 writeMatrix(add_m, $ADD_M);
 writeMatrix(sub_m, $SUB_M);
 writeMatrix(mul_m, $MUL_M);
-// writeMatrix(div_m, $DIV_M);
+//writeMatrix(div_m, $DIV_M);
