@@ -133,7 +133,8 @@ def Daphne_ConvertCSRMatrixToRowOffsetsMemRef : Daphne_Op<"convertCSRMatrixToRow
 def Daphne_FillOp : Daphne_Op<"fill", [
     DataTypeMat, ValueTypeFromFirstArg,
     NumRowsFromIthScalar<1>, NumColsFromIthScalar<2>, CUDASupport,
-    DeclareOpInterfaceMethods<InferSymmetricOpInterface>
+    DeclareOpInterfaceMethods<InferSymmetricOpInterface>,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ]> {
     let arguments = (ins AnyScalar:$arg, Size:$numRows, Size:$numCols);
     let results = (outs MatrixOrU:$res);
@@ -142,7 +143,8 @@ def Daphne_FillOp : Daphne_Op<"fill", [
 def Daphne_MatrixConstantOp : Daphne_Op<"matrixConstant", [
     DataTypeMat,
     DeclareOpInterfaceMethods<InferShapeOpInterface>,
-    DeclareOpInterfaceMethods<InferSparsityOpInterface>
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ]>{
     let arguments = (ins UI64:$matrixAddr);
     let results = (outs MatrixOrU:$res);
@@ -189,7 +191,8 @@ def Daphne_SeqOp : Daphne_Op<"seq", [
     DataTypeMat, ValueTypeFromArgs,
     OneCol, DeclareOpInterfaceMethods<InferNumRowsOpInterface>,
     CompletelyDense,
-    CastArgsToResType
+    CastArgsToResType,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ]> {
     let arguments = (ins NumScalar:$from, NumScalar:$to, NumScalar:$inc);
     let results = (outs MatrixOf<[NumScalar]>);
@@ -337,7 +340,8 @@ class Daphne_EwBinaryOp<string name, Type scalarType, list<Trait> traits = []>
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     ShapeEwBinary,
-    NoMemoryEffect
+    NoMemoryEffect,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ])> {
     let arguments = (ins AnyTypeOf<[MatrixOf<[scalarType]>, scalarType, Unknown]>:$lhs, AnyTypeOf<[MatrixOf<[scalarType]>, scalarType, Unknown]>:$rhs);
     let results = (outs AnyTypeOf<[MatrixOf<[scalarType]>, scalarType, Unknown]>:$res);
@@ -1742,7 +1746,8 @@ def Daphne_ReadOp : Daphne_Op<"read", [
     DeclareOpInterfaceMethods<InferTypesOpInterface>,
     DeclareOpInterfaceMethods<InferShapeOpInterface>,
     DeclareOpInterfaceMethods<InferFrameLabelsOpInterface>,
-    DeclareOpInterfaceMethods<InferSparsityOpInterface>
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ]> {
     // TODO We might add arguments for a UDF later.
     let arguments = (ins StrScalar:$fileName);
