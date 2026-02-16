@@ -242,6 +242,8 @@ FileMetaData MetaDataParser::readMetaDataFromString(const std::string &str) {
 
 std::string MetaDataParser::writeMetaDataToString(const FileMetaData &metaData) {
     nlohmann::json json;
+    // Optionally include mnc sketch in meta data
+    bool isWriteMncSketch = true;
 
     json[JsonKeys::NUM_ROWS] = metaData.numRows;
     json[JsonKeys::NUM_COLS] = metaData.numCols;
@@ -273,7 +275,10 @@ std::string MetaDataParser::writeMetaDataToString(const FileMetaData &metaData) 
 
         json[JsonKeys::HDFS][JsonKeys::HDFSKeys::HDFSFilename] = "/" + baseFileName;
     }
-    writeMncSketchToJson(json, *metaData.mncSketch);
+    if (isWriteMncSketch && metaData.mncSketch.has_value()) {
+        writeMncSketchToJson(json, *metaData.mncSketch);
+    }
+
     
     return json.dump();
 }
