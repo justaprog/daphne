@@ -134,7 +134,8 @@ def Daphne_FillOp : Daphne_Op<"fill", [
     DataTypeMat, ValueTypeFromFirstArg,
     NumRowsFromIthScalar<1>, NumColsFromIthScalar<2>, CUDASupport,
     DeclareOpInterfaceMethods<InferSymmetricOpInterface>,
-    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>,
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>
 ]> {
     let arguments = (ins AnyScalar:$arg, Size:$numRows, Size:$numCols);
     let results = (outs MatrixOrU:$res);
@@ -192,7 +193,8 @@ def Daphne_SeqOp : Daphne_Op<"seq", [
     OneCol, DeclareOpInterfaceMethods<InferNumRowsOpInterface>,
     CompletelyDense,
     CastArgsToResType,
-    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>,
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>
 ]> {
     let arguments = (ins NumScalar:$from, NumScalar:$to, NumScalar:$inc);
     let results = (outs MatrixOf<[NumScalar]>);
@@ -353,16 +355,20 @@ class Daphne_EwBinaryOp<string name, Type scalarType, list<Trait> traits = []>
 // ----------------------------------------------------------------------------
 
 // TODO Make EwAddOp Commutative again (see #449).
-def Daphne_EwAddOp    : Daphne_EwBinaryOp<"ewAdd", AnyScalar, [ValueTypeFromArgs, CastArgsToResType/*, Commutative*/, EwSparseIfBoth, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>]> {
+def Daphne_EwAddOp    : Daphne_EwBinaryOp<"ewAdd", AnyScalar, [ValueTypeFromArgs, 
+                                                               CastArgsToResType/*, Commutative*/, 
+                                                               EwSparseIfBoth, CUDASupport, 
+                                                               DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>,
+                                                               DeclareOpInterfaceMethods<InferSparsityOpInterface>]> {
     let hasCanonicalizeMethod = 1;
 }
-def Daphne_EwSubOp    : Daphne_EwBinaryOp<"ewSub", NumScalar, [ValueTypeFromArgs, CastArgsToResType, EwSparseIfBoth, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>]> {
+def Daphne_EwSubOp    : Daphne_EwBinaryOp<"ewSub", NumScalar, [ValueTypeFromArgs, CastArgsToResType, EwSparseIfBoth, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>, DeclareOpInterfaceMethods<InferSparsityOpInterface>]> {
     let hasCanonicalizeMethod = 1;
 }
-def Daphne_EwMulOp    : Daphne_EwBinaryOp<"ewMul", NumScalar, [ValueTypeFromArgs, CastArgsToResType, Commutative, EwSparseIfEither, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>]> {
+def Daphne_EwMulOp    : Daphne_EwBinaryOp<"ewMul", NumScalar, [ValueTypeFromArgs, CastArgsToResType, Commutative, EwSparseIfEither, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>, DeclareOpInterfaceMethods<InferSparsityOpInterface>]> {
     let hasCanonicalizeMethod = 1;
 }
-def Daphne_EwDivOp    : Daphne_EwBinaryOp<"ewDiv", NumScalar, [ValueTypeFromArgs, CastArgsToResType, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>]> {
+def Daphne_EwDivOp    : Daphne_EwBinaryOp<"ewDiv", NumScalar, [ValueTypeFromArgs, CastArgsToResType, CUDASupport, DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>, DeclareOpInterfaceMethods<InferSparsityOpInterface>]> {
     let hasCanonicalizeMethod = 1;
 }
 def Daphne_EwPowOp    : Daphne_EwBinaryOp<"ewPow", NumScalar, [ValueTypeFromArgs, CastArgsToResType, CUDASupport]>;

@@ -383,15 +383,65 @@ MncSketch buildMncFromFill(double val, size_t rows, size_t cols) {
 
 MncSketch buildMncFromSeq(double start, double end, double step) {
     if (step == 0.0) throw std::runtime_error("Seq step cannot be 0");
-    size_t rows = static_cast<size_t>(std::floor((end - start) / step)) + 1;
-    MncSketch h; 
-    h.m = rows; h.n = 1;
-    h.hr = std::make_shared<std::vector<uint32_t>>(rows, 1);
-    h.hc = std::make_shared<std::vector<uint32_t>>(1, rows);
-    h.her = std::make_shared<std::vector<uint32_t>>(rows, 1);
-    h.hec = std::make_shared<std::vector<uint32_t>>(1, 0);
-    h.nnzRows = rows; h.nnzCols = 1; h.maxHr = 1; h.maxHc = rows;
-    h.rowsEq1 = rows; h.colsEq1 = (rows==1)?1:0;
+
+    // number of elements in inclusive sequence
+    const double len_d = std::floor((end - start) / step) + 1.0;
+    if (len_d <= 0.0) {
+        // no elements
+        return MncSketch{};
+    }
+
+    const std::size_t rows = static_cast<std::size_t>(len_d);
+
+    MncSketch h;
+    h.m = rows;
+    h.n = 1;
+    h.isDiagonal = false;
+
+    h.hr = std::make_shared<std::vector<std::uint32_t>>(rows, 0);
+    h.hc = std::make_shared<std::vector<std::uint32_t>>(1, 0);
+
+    // Build nonzero pattern for the vector
+    std::uint32_t nnz = 0;
+    for (std::size_t i = 0; i < rows; i++) {
+        const double v = start + static_cast<double>(i) * step;
+        const bool nz = (v != 0.0);                 // exact zero semantics
+        (*h.hr)[i] = nz ? 1u : 0u;
+        if (nz) nnz++;
+    }
+
+    (*h.hc)[0] = nnz;
+
+    // Summary stats
+    h.maxHr = (nnz > 0) ? 1u : 0u;
+    h.maxHc = nnz;
+
+    h.nnzRows = nnz;
+    h.nnzCols = (nnz > 0) ? 1u : 0u;
+
+    h.rowsEq1 = nnz;                 // in a 1-col vector, nonzero rows have hr==1
+    h.colsEq1 = (nnz == 1) ? 1u : 0u;
+
+    h.rowsGtHalf = nnz;              // since n==1, n/2==0 => hr>0 <=> nonzero
+    h.colsGtHalf = (nnz > rows/2) ? 1u : 0u;
+
+    // Extended counts (exact for this case)
+    // her[i] = hr[i] if hc==1 else 0
+    // hec[0] = hc[0] because all nonzeros are in rows with hr==1
+    h.her = std::make_shared<std::vector<std::uint32_t>>(rows, 0);
+    h.hec = std::make_shared<std::vector<std::uint32_t>>(1, 0);
+
+    if (nnz == 1) {
+        // only one nonzero in the column => singleton column
+        for (std::size_t i = 0; i < rows; i++) {
+            (*h.her)[i] = (*h.hr)[i];
+        }
+    }
+    (*h.hec)[0] = nnz;
+
+    // Diagonal flag only makes sense when it's 1x1
+    h.isDiagonal = (rows == 1 && nnz == 1);
+
     return h;
 }
 

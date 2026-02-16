@@ -39,6 +39,21 @@ using namespace mlir::OpTrait;
 // ****************************************************************************
 // Utilities
 // ****************************************************************************
+static const MncSketch *getSketchOrUnknownFromResult(Value v) {
+    auto mt = llvm::dyn_cast<daphne::MatrixType>(v.getType());
+    if (!mt)
+        return nullptr;
+
+    auto id = mt.getMncSketchId();
+    if (id == -1)
+        return nullptr;
+
+    auto *reg = daphne::getActiveMncSketchRegistry();
+    if (!reg)
+        return nullptr;
+
+    return reg->get(id);
+}
 
 double getSparsityOrUnknownFromType(Value v) {
     Type t = v.getType();
@@ -158,6 +173,50 @@ std::vector<double> daphne::TriOp::inferSparsity() {
     return {argTy.getSparsity() / 2.0};
 }
 
+// ****************************************************************************
+// Datagen
+// ****************************************************************************
+std::vector<double> daphne::FillOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+
+std::vector<double> daphne::SeqOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+
+// ****************************************************************************
+// Elementwise operations
+// ****************************************************************************
+std::vector<double> daphne::EwAddOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+std::vector<double> daphne::EwSubOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+std::vector<double> daphne::EwMulOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+std::vector<double> daphne::EwDivOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
 std::vector<double> daphne::ReadOp::inferSparsity() {
     std::pair<bool, std::string> p = CompilerUtils::isConstant<std::string>(getFileName());
     if (p.first) {

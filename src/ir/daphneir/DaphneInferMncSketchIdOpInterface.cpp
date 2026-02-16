@@ -42,14 +42,6 @@ using namespace mlir::OpTrait;
 // ****************************************************************************
 // Utilities
 // ****************************************************************************
-
-static int64_t getMncSketchIdOrUnknownFromType(Value v) {
-    Type t = v.getType();
-    if (auto mt = llvm::dyn_cast<daphne::MatrixType>(t))
-        return mt.getMncSketchId();
-    return {-1};
-}
-
 template <typename VT>
 static int64_t buildAndStoreSketch(uint64_t matrixAddr) {
     auto *reg = daphne::getActiveMncSketchRegistry();

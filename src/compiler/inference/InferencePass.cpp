@@ -524,6 +524,9 @@ class InferencePass : public PassWrapper<InferencePass, OperationPass<func::Func
         try {
             daphne::setActiveMncSketchRegistry(&mncRegistry);
             f.walk<WalkOrder::PreOrder>(walkOp);
+            // clear the registry to free memory and to avoid accidentally using it in later passes 
+            // that might run in the same process without setting it up properly
+            daphne::clearActiveMncSketchRegistry();
         } catch (std::runtime_error &re) {
             daphne::clearActiveMncSketchRegistry();
             throw ErrorHandler::rethrowError("InferencePass.cpp:" + std::to_string(__LINE__), re.what());
