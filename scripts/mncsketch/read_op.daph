@@ -23,13 +23,6 @@ print("Es. Sparsity read_1:");
 print(sparsity(read_1));
 
 print("Real Sparsity:");
-// read not working properly, output for real = 0
-print(as.f64(sum(read_1 != 0)) / (nrow(read_1) * ncol(read_1)));
-
-// this works
-//print(nrow(read_1) * ncol(read_1));
-
-// this works
-print(read_1);
+print(as.f64(sum(read_1 != 0)) / as.f64(nrow(read_1) * ncol(read_1)));
 
 writeMatrix(read_1, $O);

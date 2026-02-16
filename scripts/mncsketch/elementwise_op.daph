@@ -14,28 +14,13 @@
  * limitations under the License.
  */
 
-// run: bin/daphne --explain property_inference scripts/mncsketch/elementwise_op.daph ADD_M=\"./data/test/add_m.csv\" SUB_M=\"./data/test/sub_m.csv\" MUL_M=\"./data/test/mul_m.csv\" DIV_M=\"./data/test/div_m.csv\"
+// run: bin/daphne --explain property_inference scripts/mncsketch/elementwise_op.daph ADD_M=\"./data/test/add_m.csv\" SUB_M=\"./data/test/sub_m.csv\" MUL_M=\"./data/test/mul_m.csv\" M_1=\"./data/m_1.csv\" M_2=\"./data/m_2.csv\"
 // all works correct except for sparsity(div) err: Floating point exception (core dumped)
 
-m1 = [0,0,0,0,0,0,0,1,0,
-    0,1,0,0,1,0,0,0,0,
-    0,0,0,1,1,1,0,0,0,
-    0,0,0,0,0,0,0,0,0,
-    0,0,1,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,1,0,
-    1,0,0,1,0,0,0,0,0,
-    0,0,1,0,1,0,1,0,0,
-    0,0,0,0,0,0,0,0,1](9,9);
 
-m2 = [2,2,0,0,0,0,0,1,0,
-    0,2,0,0,2,0,0,0,0,
-    0,0,0,2,2,2,0,0,0,
-    0,0,0,0,0,0,0,0,0,
-    0,0,2,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,2,0,
-    2,0,0,2,0,0,0,0,0,
-    0,0,2,0,2,0,2,0,0,
-    0,0,0,0,0,0,0,0,2](9,9);
+// READ 
+m1 = readMatrix($M_1);
+m2 = readMatrix($M_2);
 
 add_m = m1 + m2;
 sub_m = m1 - m2;
@@ -45,22 +30,22 @@ div_m = m1 / m2;
 print("Es. Sparsity add_m:");
 print(sparsity(add_m));
 print("Real Sparsity:");
-print(as.f64(sum(add_m != 0)) / (nrow(add_m) * ncol(add_m)));
+print(as.f64(sum(add_m != 0)) / as.f64(nrow(add_m) * ncol(add_m)));
 
 print("Es. Sparsity sub_m:");
 print(sparsity(sub_m));
 print("Real Sparsity:");
-print(as.f64(sum(sub_m != 0)) / (nrow(sub_m) * ncol(sub_m)));
+print(as.f64(sum(sub_m != 0)) / as.f64(nrow(sub_m) * ncol(sub_m)));
 
 print("Es. Sparsity mul_m:");
 print(sparsity(mul_m));
 print("Real Sparsity:");
-print(as.f64(sum(mul_m != 0)) / (nrow(mul_m) * ncol(mul_m)));
+print(as.f64(sum(sub_m != 0)) / as.f64(nrow(sub_m) * ncol(sub_m)));
 
 //print("Es. Sparsity div_m:");
 //print(sparsity(div_m));
 //print("Real Sparsity:");
-//print(as.f64(sum(div_m != 0)) / (nrow(div_m) * ncol(div_m)));
+//print(as.f64(sum(sub_m != 0)) / as.f64(nrow(sub_m) * ncol(sub_m)));
 
 writeMatrix(add_m, $ADD_M);
 writeMatrix(sub_m, $SUB_M);
