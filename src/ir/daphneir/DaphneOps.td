@@ -759,7 +759,8 @@ def Daphne_InsertColOp : Daphne_Op<"insertCol", [
 
 def Daphne_ReshapeOp : Daphne_Op<"reshape", [
     TypeFromFirstArg,
-    NumRowsFromIthScalar<1>, NumColsFromIthScalar<2>, SparsityFromArg
+    NumRowsFromIthScalar<1>, NumColsFromIthScalar<2>, SparsityFromArg,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ]> {
     let arguments = (ins MatrixOrU:$arg, Size:$numRows, Size:$numCols);
     let results = (outs MatrixOrU:$res);

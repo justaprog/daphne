@@ -149,6 +149,25 @@ std::vector<int64_t> daphne::TransposeOp::inferMncSketchId() {
     }
     return {-1};
 }
+std::vector<int64_t> daphne::ReshapeOp::inferMncSketchId() {
+    auto *reg = getActiveMncSketchRegistry();
+    if (reg == nullptr) {
+        return {-1};
+    }
+    auto mt = llvm::dyn_cast<daphne::MatrixType>(getArg().getType());
+    auto id = mt.getMncSketchId();
+    std::pair numRows = CompilerUtils::isConstant<ssize_t>(getNumRows());
+    std::pair numCols = CompilerUtils::isConstant<ssize_t>(getNumCols());
+    if (id != -1) {
+        const MncSketch *hA = reg->get(id);
+        if (hA == nullptr) {
+            return {-1};
+        }
+        MncSketch hC = propagateMncFromReshape(*hA, numRows.first ? static_cast<std::size_t>(numRows.second) : 0, numCols.first ? static_cast<std::size_t>(numCols.second) : 0);
+        return {reg->store(std::move(hC))};
+    }
+    return {-1};
+}
 std::vector<int64_t> daphne::MatrixConstantOp::inferMncSketchId() {
     auto p = CompilerUtils::isConstant<uint64_t>(getMatrixAddr());
     if (!p.first)
