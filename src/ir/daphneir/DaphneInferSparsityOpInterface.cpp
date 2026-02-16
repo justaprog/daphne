@@ -162,6 +162,11 @@ std::vector<double> daphne::ReadOp::inferSparsity() {
     std::pair<bool, std::string> p = CompilerUtils::isConstant<std::string>(getFileName());
     if (p.first) {
         FileMetaData fmd = MetaDataParser::readMetaData(p.second);
+        if (fmd.mncSketch.has_value()) {
+            // preferred: estimate directly from sketch
+            double s = estimateSparsity_fromSketch(fmd.mncSketch.value());
+            return {s};
+        }
         if (fmd.numNonZeros == -1)
             return {-1.0};
         // TODO: maybe use type shape info instead of file? (would require

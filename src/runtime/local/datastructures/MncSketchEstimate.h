@@ -23,6 +23,7 @@
  * @return Estimated sparsity of the product A * B
  * 
  */
+double estimateSparsity_fromSketch(const MncSketch &mncSketch);
 double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB);
 
 double estimateSparsity_ElementWiseAddition(const MncSketch &hA, const MncSketch &hB);

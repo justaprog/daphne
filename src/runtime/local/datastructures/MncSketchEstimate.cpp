@@ -51,6 +51,45 @@ double EdmDensity(const std::vector<std::uint32_t>& hcA_res,
     return static_cast<double>(s);
 }
 
+double estimateSparsity_fromSketch(const MncSketch &s) {
+    //"sparsity" == density == fraction of non-zeros in [0,1].
+    if (s.m == 0 || s.n == 0)
+        return 0.0;
+
+    const bool haveHr = (s.hr && s.hr->size() == s.m);
+    const bool haveHc = (s.hc && s.hc->size() == s.n);
+
+    if (!haveHr && !haveHc)
+        return -1.0; // no info, return "unknown"
+
+    std::uint64_t sumHr = 0;
+    std::uint64_t sumHc = 0;
+
+    if (haveHr) {
+        for (std::uint32_t v : *s.hr)
+            sumHr += static_cast<std::uint64_t>(v);
+    }
+    if (haveHc) {
+        for (std::uint32_t v : *s.hc)
+            sumHc += static_cast<std::uint64_t>(v);
+    }
+
+    std::uint64_t nnz = 0;
+    if (haveHr && haveHc) {
+        // In a real matrix sketch these should be equal.
+        // If not (e.g. synthetic generator), take a stable compromise.
+        nnz = (sumHr == sumHc) ? sumHr : (sumHr + sumHc) / 2;
+    }
+    else {
+        nnz = haveHr ? sumHr : sumHc;
+    }
+
+    const long double denom = static_cast<long double>(s.m) * static_cast<long double>(s.n);
+    const long double density = (denom > 0.0L) ? (static_cast<long double>(nnz) / denom) : 0.0L;
+
+    return static_cast<double>(std::clamp(density, 0.0L, 1.0L));
+}
+
 double estimateSparsity_product(const MncSketch &hA, const MncSketch &hB) {
     const std::size_t m = hA.m;
     const std::size_t l = hB.n;

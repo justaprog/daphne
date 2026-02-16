@@ -14,10 +14,22 @@
  * limitations under the License.
  */
 
- // bin/daphne --explain property_inference scripts/mncsketch/read_op.daph C=\"./data/outm1.csv\" O=\"./data/test/read_1.csv\" 
-
+// bin/daphne --explain property_inference scripts/mncsketch/read_op.daph C=\"./data/outm1.csv\" O=\"./data/test/read_1.csv\" 
+// works 
 
 read_1 = readMatrix($C);
+
+print("Es. Sparsity read_1:");
+print(sparsity(read_1));
+
+print("Real Sparsity:");
+// read not working properly, output for real = 0
+print(as.f64(sum(read_1 != 0)) / (nrow(read_1) * ncol(read_1)));
+
+// this works
+//print(nrow(read_1) * ncol(read_1));
+
+// this works
 print(read_1);
-print(sparsity((read_1)));
+
 writeMatrix(read_1, $O);
