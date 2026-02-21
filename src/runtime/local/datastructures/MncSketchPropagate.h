@@ -36,6 +36,7 @@ MncSketch propagateTranspose(const MncSketch &hA);
 
 MncSketch propagateRbind(const MncSketch &A, const MncSketch &B);
 MncSketch propagateCbind(const MncSketch &A, const MncSketch &B);
+MncSketch propagateMncFromDiagMatrix(const MncSketch &arg);
 
 MncSketch propagateMncFromReshape(const MncSketch &A, std::size_t outM, std::size_t outN);
 /*

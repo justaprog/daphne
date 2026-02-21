@@ -203,6 +203,31 @@ MncSketch propagateCbind(const MncSketch &A, const MncSketch &B) {
     return C;
 }
 
+MncSketch propagateMncFromDiagMatrix(const MncSketch &arg) {
+    // arg must be (n x 1)
+    if (arg.n != 1)
+        throw std::runtime_error("diagMatrix: arg must be a (n x 1) column-matrix");
+
+    const std::size_t n = arg.m;
+
+    MncSketch out;
+    out.m = n;
+    out.n = n;
+
+    out.isDiagonal = true;
+
+    out.hr = std::make_shared<std::vector<std::uint32_t>>(n, 0);
+    out.hc = std::make_shared<std::vector<std::uint32_t>>(n, 0);
+
+    for (std::size_t i = 0; i < n; i++) {
+        const std::uint32_t nz = ((*arg.hr)[i] > 0) ? 1u : 0u;
+        (*out.hr)[i] = nz;
+        (*out.hc)[i] = nz;
+    }
+
+    computeSummary(out);
+    return out;
+}
 MncSketch propagateMncFromReshape(const MncSketch &A, std::size_t outM, std::size_t outN) {
     // Cell count must be preserved.
     const __int128 inCells  = static_cast<__int128>(A.m) * static_cast<__int128>(A.n);
