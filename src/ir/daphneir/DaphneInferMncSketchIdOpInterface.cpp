@@ -178,6 +178,69 @@ std::vector<int64_t> daphne::TransposeOp::inferMncSketchId() {
     }
     return {UNKNOWN_SKETCH_ID};
 }
+
+std::vector<int64_t> daphne::RowBindOp::inferMncSketchId(){
+    auto *reg = getActiveMncSketchRegistry();
+    if (!reg)
+        return {UNKNOWN_SKETCH_ID};
+
+    auto lhsTy = llvm::dyn_cast<daphne::MatrixType>(getLhs().getType());
+    auto rhsTy = llvm::dyn_cast<daphne::MatrixType>(getRhs().getType());
+
+    auto lhsId = lhsTy.getMncSketchId();
+    auto rhsId = rhsTy.getMncSketchId();
+    if (lhsId == -1 || rhsId == -1) {
+        return {UNKNOWN_SKETCH_ID};
+    }
+    const MncSketch *hA = reg->get(lhsId);
+    const MncSketch *hB = reg->get(rhsId);
+    if (hA == nullptr || hB == nullptr) {
+        return {UNKNOWN_SKETCH_ID};
+    }
+    MncSketch hC = propagateRbind(*hA, *hB);
+    return {reg->store(std::move(hC))};
+}
+
+std::vector<int64_t> daphne::ColBindOp::inferMncSketchId(){
+    auto *reg = getActiveMncSketchRegistry();
+    if (!reg)
+        return {UNKNOWN_SKETCH_ID};
+
+    auto lhsTy = llvm::dyn_cast<daphne::MatrixType>(getLhs().getType());
+    auto rhsTy = llvm::dyn_cast<daphne::MatrixType>(getRhs().getType());
+
+    auto lhsId = lhsTy.getMncSketchId();
+    auto rhsId = rhsTy.getMncSketchId();
+    if (lhsId == -1 || rhsId == -1) {
+        return {UNKNOWN_SKETCH_ID};
+    }
+    const MncSketch *hA = reg->get(lhsId);
+    const MncSketch *hB = reg->get(rhsId);
+    if (hA == nullptr || hB == nullptr) {
+        return {UNKNOWN_SKETCH_ID};
+    }
+    MncSketch hC = propagateCbind(*hA, *hB);
+    return {reg->store(std::move(hC))};
+}
+
+std::vector<int64_t> daphne::DiagMatrixOp::inferMncSketchId(){
+    auto *reg = getActiveMncSketchRegistry();
+    if (!reg)
+        return {UNKNOWN_SKETCH_ID};
+
+    auto argTy = llvm::dyn_cast<daphne::MatrixType>(getArg().getType());
+    auto argId = argTy.getMncSketchId();
+    if (argId == -1) {
+        return {UNKNOWN_SKETCH_ID};
+    }
+    const MncSketch *hA = reg->get(argId);
+    if (hA == nullptr) {
+        return {UNKNOWN_SKETCH_ID};
+    }
+    MncSketch hC = propagateMncFromDiagMatrix(*hA);
+    return {reg->store(std::move(hC))};
+}
+
 std::vector<int64_t> daphne::ReshapeOp::inferMncSketchId() {
     auto *reg = daphne::getActiveMncSketchRegistry();
     if (!reg)
