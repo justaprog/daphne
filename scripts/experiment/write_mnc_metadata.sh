@@ -1,0 +1,1 @@
+bin/daphne --explain property_inference scripts/experiment/matmul_cases.daph M1_WITHOUT_MNC=\"./data/real/bp__1000.mtx\" M1_WITH_MNC=\"./data/real/withmnc/bp__1000.csv\" M1_O=\"./data/real/withmnc/bp__1000.csv\" M2_WITHOUT_MNC=\"./data/real/bp__1200.mtx\" M2_WITH_MNC=\"./data/real/withmnc/bp__1200.csv\" M2_O=\"./data/real/withmnc/bp__1200.csv\"

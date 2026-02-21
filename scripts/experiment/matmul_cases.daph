@@ -1,0 +1,62 @@
+/*
+ * Copyright 2021 The DAPHNE Consortium
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// bin/daphne --explain property_inference scripts/experiment/matmul_cases.daph M1_WITHOUT_MNC=\"./data/real/bp__1000.mtx\" M1_WITH_MNC=\"./data/real/withmnc/bp__1000.csv\" M1_O=\"./data/real/withmnc/bp__1000.csv\" M2_WITHOUT_MNC=\"./data/real/bp__1200.mtx\" M2_WITH_MNC=\"./data/real/withmnc/bp__1200.csv\" M2_O=\"./data/real/withmnc/bp__1200.csv\"
+// all works 
+
+m1_without_mnc = readMatrix($M1_WITHOUT_MNC);
+// To save meta data with mnc 
+writeMatrix(m1_without_mnc, $M1_O);
+m1_with_mnc = readMatrix($M1_WITH_MNC);
+
+m2_without_mnc = readMatrix($M2_WITHOUT_MNC);
+// To save meta data with mnc 
+writeMatrix(m2_without_mnc, $M2_O);
+m2_with_mnc = readMatrix($M2_WITH_MNC);
+
+threshold = 0.25;
+
+print("Experiment with mnc:");
+matmul_m_mnc = m1_with_mnc @ m2_with_mnc; // 35 x 4
+matmul_m = m1_without_mnc @ m1_without_mnc; // 35 x 4
+
+print("Real Sparsity matmul_m_mnc:");
+real_spars = as.f64(sum(matmul_m_mnc != 0.0)) / as.f64(nrow(matmul_m_mnc) * ncol(matmul_m_mnc));
+print(real_spars);
+
+print("MNC:");
+print(sparsity(matmul_m_mnc));
+if (sparsity(matmul_m_mnc) >= threshold && real_spars >= threshold){
+    print("Same Rep");
+}
+else if (sparsity(matmul_m_mnc) < threshold && real_spars < threshold){
+    print("Same Rep");
+}
+else {
+    print("Diff Rep");
+}
+
+print("Estimator:");
+print(sparsity(matmul_m));
+if (sparsity(matmul_m) >= threshold && real_spars >= threshold){
+    print("Same Rep");
+}
+else if (sparsity(matmul_m) < threshold && real_spars < threshold){
+    print("Same Rep");
+}
+else {
+    print("Diff Rep");
+}
