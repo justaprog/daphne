@@ -41,3 +41,50 @@ print(sparsity(c_reshape));
 print("It should print True or 1");
 print(sparsity(c) == sparsity(c_reshape));
 writeMatrix(c_reshape, $C_RESHAPE);
+
+// cbind
+m_left = [0,0,0,0,
+    0,1,0,0,
+    0,0,0,1,
+    0,0,0,0,
+    0,0,1,0,
+    0,0,0,0,
+    1,0,0,1,
+    0,0,1,0,
+    0,0,0,0](9,4);
+m_right = [0,0,0,1,0,
+    1,0,0,0,0,
+    1,1,0,0,0,
+    0,0,0,0,0,
+    0,0,0,0,0,
+    0,0,0,1,0,
+    0,0,0,0,0,
+    1,0,1,0,0,
+    0,0,0,0,1](9,5);
+
+m_cbind = cbind(m_left, m_right);
+
+print("Real Sparsity m_cbind:");
+print(as.f64(sum(m_cbind != 0)) / as.f64(nrow(m_cbind) * ncol(m_cbind)));
+
+print("Sparsity m_cbind ");
+print(sparsity(m_cbind));
+// rbind
+m_left = [0,0,0,0,0,0,0,1,0,
+    0,1,0,0,1,0,0,0,0,
+    0,0,0,1,1,1,0,0,0,
+    0,0,0,0,0,0,0,0,0](4,9);
+
+m_right = [
+    0,0,1,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,1,0,
+    1,0,0,1,0,0,0,0,0,
+    0,0,1,0,1,0,1,0,0,
+    0,0,0,0,0,0,0,0,1](5,9);
+m_rbind = rbind(m_left, m_right);
+
+print("Real Sparsity m_rbind:");
+print(as.f64(sum(m_rbind != 0)) / as.f64(nrow(m_rbind) * ncol(m_rbind)));
+
+print("Sparsity m_rbind ");
+print(sparsity(m_rbind));
