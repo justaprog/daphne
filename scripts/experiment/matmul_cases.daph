@@ -19,12 +19,10 @@
 
 m1_without_mnc = readMatrix($M1_WITHOUT_MNC);
 // To save meta data with mnc 
-writeMatrix(m1_without_mnc, $M1_O);
 m1_with_mnc = readMatrix($M1_WITH_MNC);
 
 m2_without_mnc = readMatrix($M2_WITHOUT_MNC);
 // To save meta data with mnc 
-writeMatrix(m2_without_mnc, $M2_O);
 m2_with_mnc = readMatrix($M2_WITH_MNC);
 
 threshold = 0.25;
