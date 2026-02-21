@@ -55,6 +55,30 @@ static std::uint64_t totalNnz(const MncSketch &A) {
     if (A.hc && A.hc->size() == A.n) return sumVec(A.hc);
     return 0;
 }
+static bool hasHr(const MncSketch &S) { return S.hr && S.hr->size() == S.m; }
+static bool hasHc(const MncSketch &S) { return S.hc && S.hc->size() == S.n; }
+static bool hasHer(const MncSketch &S) { return S.her && S.her->size() == S.m; }
+static bool hasHec(const MncSketch &S) { return S.hec && S.hec->size() == S.n; }
+
+static std::uint32_t sat_u32(std::uint64_t v) {
+    return static_cast<std::uint32_t>(
+        std::min<std::uint64_t>(v, std::numeric_limits<std::uint32_t>::max())
+    );
+}
+
+// If hec isn't materialized and maxHr<=1, then all nnz lie in singleton rows => hec == hc.
+static std::uint32_t getHecVal(const MncSketch &S, std::size_t j) {
+    if (hasHec(S)) return (*S.hec)[j];
+    if (S.maxHr <= 1 && hasHc(S)) return (*S.hc)[j];
+    return 0;
+}
+
+// If her isn't materialized and maxHc<=1, then all nnz lie in singleton cols => her == hr.
+static std::uint32_t getHerVal(const MncSketch &S, std::size_t i) {
+    if (hasHer(S)) return (*S.her)[i];
+    if (S.maxHc <= 1 && hasHr(S)) return (*S.hr)[i];
+    return 0;
+}
 
 static void computeSummary(MncSketch &S) {
     S.maxHr = 0; S.maxHc = 0;
@@ -62,24 +86,121 @@ static void computeSummary(MncSketch &S) {
     S.rowsEq1 = 0; S.colsEq1 = 0;
     S.rowsGtHalf = 0; S.colsGtHalf = 0;
 
-    if (S.hr && S.hr->size() == S.m) {
+    if (hasHr(S)) {
         for (std::size_t i = 0; i < S.m; i++) {
             auto v = (*S.hr)[i];
             S.maxHr = std::max(S.maxHr, v);
-            if (v > 0) S.nnzRows++;
-            if (v == 1) S.rowsEq1++;
-            if (v > S.n / 2) S.rowsGtHalf++;
+            if (v > 0 && S.nnzRows < std::numeric_limits<std::uint32_t>::max()) S.nnzRows++;
+            if (v == 1 && S.rowsEq1 < std::numeric_limits<std::uint32_t>::max()) S.rowsEq1++;
+            if (v > S.n / 2 && S.rowsGtHalf < std::numeric_limits<std::uint32_t>::max()) S.rowsGtHalf++;
         }
     }
-    if (S.hc && S.hc->size() == S.n) {
+    if (hasHc(S)) {
         for (std::size_t j = 0; j < S.n; j++) {
             auto v = (*S.hc)[j];
             S.maxHc = std::max(S.maxHc, v);
-            if (v > 0) S.nnzCols++;
-            if (v == 1) S.colsEq1++;
-            if (v > S.m / 2) S.colsGtHalf++;
+            if (v > 0 && S.nnzCols < std::numeric_limits<std::uint32_t>::max()) S.nnzCols++;
+            if (v == 1 && S.colsEq1 < std::numeric_limits<std::uint32_t>::max()) S.colsEq1++;
+            if (v > S.m / 2 && S.colsGtHalf < std::numeric_limits<std::uint32_t>::max()) S.colsGtHalf++;
         }
     }
+}
+
+/**
+ * rbind(lhs, rhs): vertical concat, requires same number of columns
+ * Paper: hr = concat(hrA, hrB), hc = hcA + hcB, her = 0, hec = hecA + hecB
+ */
+MncSketch propagateRbind(const MncSketch &A, const MncSketch &B) {
+    if (A.n != B.n)
+        throw std::runtime_error("rbind: lhs and rhs must have the same number of columns");
+
+    MncSketch C;
+    C.m = A.m + B.m;
+    C.n = A.n;
+    C.isDiagonal = false;
+
+    C.hr = std::make_shared<std::vector<std::uint32_t>>(C.m, 0);
+    C.hc = std::make_shared<std::vector<std::uint32_t>>(C.n, 0);
+
+    // hr^C = rbind(hr^A, hr^B)
+    if (hasHr(A)) {
+        for (std::size_t i = 0; i < A.m; i++) (*C.hr)[i] = (*A.hr)[i];
+    }
+    if (hasHr(B)) {
+        for (std::size_t i = 0; i < B.m; i++) (*C.hr)[A.m + i] = (*B.hr)[i];
+    }
+
+    // hc^C = hc^A + hc^B
+    for (std::size_t j = 0; j < C.n; j++) {
+        std::uint64_t a = hasHc(A) ? (*A.hc)[j] : 0;
+        std::uint64_t b = hasHc(B) ? (*B.hc)[j] : 0;
+        (*C.hc)[j] = sat_u32(a + b);
+    }
+
+    computeSummary(C);
+
+    // extended vectors only if you follow your convention
+    if (C.maxHr > 1 || C.maxHc > 1) {
+        C.her = std::make_shared<std::vector<std::uint32_t>>(C.m, 0); // h_er^C = 0
+        C.hec = std::make_shared<std::vector<std::uint32_t>>(C.n, 0);
+
+        // h_ec^C = h_ec^A + h_ec^B (with implicit hec==hc when maxHr<=1)
+        for (std::size_t j = 0; j < C.n; j++) {
+            std::uint64_t a = getHecVal(A, j);
+            std::uint64_t b = getHecVal(B, j);
+            (*C.hec)[j] = sat_u32(a + b);
+        }
+    }
+
+    return C;
+}
+
+/**
+ * cbind(lhs, rhs): horizontal concat, requires same number of rows
+ * Paper (symmetric): hr = hrA + hrB, hc = concat(hcA, hcB), her = herA + herB, hec = 0
+ */
+MncSketch propagateCbind(const MncSketch &A, const MncSketch &B) {
+    if (A.m != B.m)
+        throw std::runtime_error("cbind: lhs and rhs must have the same number of rows");
+
+    MncSketch C;
+    C.m = A.m;
+    C.n = A.n + B.n;
+    C.isDiagonal = false;
+
+    C.hr = std::make_shared<std::vector<std::uint32_t>>(C.m, 0);
+    C.hc = std::make_shared<std::vector<std::uint32_t>>(C.n, 0);
+
+    // hr^C = hr^A + hr^B
+    for (std::size_t i = 0; i < C.m; i++) {
+        std::uint64_t a = hasHr(A) ? (*A.hr)[i] : 0;
+        std::uint64_t b = hasHr(B) ? (*B.hr)[i] : 0;
+        (*C.hr)[i] = sat_u32(a + b);
+    }
+
+    // hc^C = cbind(hc^A, hc^B)
+    if (hasHc(A)) {
+        for (std::size_t j = 0; j < A.n; j++) (*C.hc)[j] = (*A.hc)[j];
+    }
+    if (hasHc(B)) {
+        for (std::size_t j = 0; j < B.n; j++) (*C.hc)[A.n + j] = (*B.hc)[j];
+    }
+
+    computeSummary(C);
+
+    if (C.maxHr > 1 || C.maxHc > 1) {
+        C.her = std::make_shared<std::vector<std::uint32_t>>(C.m, 0);
+        C.hec = std::make_shared<std::vector<std::uint32_t>>(C.n, 0); // h_ec^C = 0
+
+        // h_er^C = h_er^A + h_er^B (with implicit her==hr when maxHc<=1)
+        for (std::size_t i = 0; i < C.m; i++) {
+            std::uint64_t a = getHerVal(A, i);
+            std::uint64_t b = getHerVal(B, i);
+            (*C.her)[i] = sat_u32(a + b);
+        }
+    }
+
+    return C;
 }
 
 MncSketch propagateMncFromReshape(const MncSketch &A, std::size_t outM, std::size_t outN) {
