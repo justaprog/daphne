@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// bin/daphne --explain property_inference scripts/experiment_new/real_data.daph WITHOUT_MNC=\"./data/real/football.mtx\" WITH_MNC=\"./data/real/football.csv\" O=\"./data/real/football.csv\"
+// bin/daphne --explain property_inference scripts/experiment/real_data.daph WITHOUT_MNC=\"./data/real/football.mtx\" WITH_MNC=\"./data/real/withmnc/football.csv\" O=\"./data/real/withmnc/football.csv\"
 // all works 
 
 
