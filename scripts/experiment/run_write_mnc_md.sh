@@ -13,6 +13,17 @@ bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w/w_343_
 bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w/w_512_512.mtx\" M1_O=\"./data/w/withmnc/w_512_512.csv\"
 bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w/w_363_363.mtx\" M1_O=\"./data/w/withmnc/w_363_363.csv\"
 
+# w sparse
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_35_35.mtx\" M1_O=\"./data/w_sparse/withmnc/w_35_35.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_66_66.mtx\" M1_O=\"./data/w_sparse/withmnc/w_66_66.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_822_822.mtx\" M1_O=\"./data/w_sparse/withmnc/w_822_822.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_800_800.mtx\" M1_O=\"./data/w_sparse/withmnc/w_800_800.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_2000_2000.mtx\" M1_O=\"./data/w_sparse/withmnc/w_2000_2000.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_115_115.mtx\" M1_O=\"./data/w_sparse/withmnc/w_115_115.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_185_185.mtx\" M1_O=\"./data/w_sparse/withmnc/w_185_185.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_343_343.mtx\" M1_O=\"./data/w_sparse/withmnc/w_343_343.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_512_512.mtx\" M1_O=\"./data/w_sparse/withmnc/w_512_512.csv\"
+bin/daphne scripts/experiment/write_mnc_md.daph M1_WITHOUT_MNC=\"./data/w_sparse/w_363_363.mtx\" M1_O=\"./data/w_sparse/withmnc/w_363_363.csv\"
 
 # write metadata for real matrices
 # all datasets: bcsstk02 (66,66), bp__1000 (822,822), bp_1200 (822,822), football (35,35), G10 (800,800), 
