@@ -14,11 +14,11 @@
  * limitations under the License.
  */
  
-// run: bin/daphne --explain property_inference scripts/mncsketch/constant_op.daph C=\"./data/test_write_metadata.csv\"
+// run: bin/daphne --explain property_inference scripts/mncsketch/constant_op.daph C=\"./data/test/constant_op.csv\"
 // all works
 
 c = [0,0,0,0,0,0,0,1,0,
-    0,1,0,0,1,0,0,0,0,
+    0,1.1,0,0,1,0,0,0,0,
     0,0,0,1,1,1,0,0,0,
     0,0,0,0,0,0,0,0,0,
     0,0,1,0,0,0,0,0,0,
@@ -26,5 +26,12 @@ c = [0,0,0,0,0,0,0,1,0,
     1,0,0,1,0,0,0,0,0,
     0,0,1,0,1,0,1,0,0,
     0,0,0,0,0,0,0,0,1](9,9);
-print(c);
+
+print("Es. Sparsity c:");
+print(sparsity(c));
+
+print("Real Sparsity:");
+print(as.f64(sum(c != 0)) / as.f64(nrow(c) * ncol(c)));
+
+
 writeMatrix(c, $C);

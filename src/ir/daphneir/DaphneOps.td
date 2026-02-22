@@ -165,7 +165,8 @@ def Daphne_CreateFrameOp : Daphne_Op<"createFrame", [
 def Daphne_DiagMatrixOp : Daphne_Op<"diagMatrix", [
     TypeFromFirstArg,
     NumRowsFromArg, NumColsFromArgNumRows,
-    DeclareOpInterfaceMethods<InferSparsityOpInterface>
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>
 ]> {
     let arguments = (ins MatrixOrU:$arg);
     let results = (outs MatrixOrU:$res);
@@ -798,12 +799,16 @@ def Daphne_ColBindOp : Daphne_BindOp<"colBind", [
     DeclareOpInterfaceMethods<InferFrameLabelsOpInterface>,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     NumRowsFromAllArgs, NumColsFromSumOfAllArgs, CUDASupport,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>,
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>,
     Pure
 ]>;
 
 def Daphne_RowBindOp : Daphne_BindOp<"rowBind", [
     ValueTypeFromArgs,
-    NumRowsFromSumOfAllArgs, NumColsFromAllArgs
+    NumRowsFromSumOfAllArgs, NumColsFromAllArgs,
+    DeclareOpInterfaceMethods<InferMncSketchIdOpInterface>,
+    DeclareOpInterfaceMethods<InferSparsityOpInterface>
 ]>;
 
 def Daphne_ReverseOp : Daphne_Op<"reverse", [

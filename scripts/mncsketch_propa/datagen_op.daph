@@ -48,3 +48,10 @@ print(as.f64(sum(rand_1 != 0)) / (nrow(rand_1) * ncol(rand_1)));
 write(seq_1, $SEQ_1);
 write(fill_1, $FILL_1);
 write(rand_1, $RAND_1);
+
+
+m_dia = diagMatrix(seq_1);
+print("Es. Sparsity m_dia:");
+print(sparsity(m_dia));
+print("Real Sparsity:");
+print(as.f64(sum(m_dia != 0)) / (nrow(m_dia) * ncol(m_dia)));

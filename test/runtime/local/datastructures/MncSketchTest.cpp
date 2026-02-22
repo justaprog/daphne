@@ -451,20 +451,21 @@ TEST_CASE("Case 1: Exact Propagation (Diagonal Matrix)", TAG_DATASTRUCTURES) {
     // [1 0 0]
     // [0 1 0]
     // [0 0 1]
-    auto A = genGivenVals<DenseMatrix<double>>(3, {1,1,0,
-                                                    0,1,1,
+    auto A = genGivenVals<DenseMatrix<double>>(3, {1,0,0,
+                                                    0,1,0,
                                                     0,0,1});
 
     // Matrix B: 3x3 Sparse
     // [1 0 0]
     // [1 1 0]
     // [0 0 0]
-    auto B = genGivenVals<DenseMatrix<double>>(3, {1,1,0,
-                                                    0,1,1,
-                                                    0,0,1});
+    auto B = genGivenVals<DenseMatrix<double>>(3, {1,0,0,
+                                                    1,1,0,
+                                                    0,0,0});
     MncSketch hA = buildMncFromDenseMatrix(*A);
     MncSketch hB = buildMncFromDenseMatrix(*B);
-
+    
+    REQUIRE(hA.isDiagonal == true);
     MncSketch hC = propagateMM(hA, hB);
 
     // Since A is diagonal, C should exact copy of B

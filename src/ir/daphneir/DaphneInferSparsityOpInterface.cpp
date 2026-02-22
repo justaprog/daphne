@@ -190,6 +190,20 @@ std::vector<double> daphne::SeqOp::inferSparsity() {
     return {s};
 }
 
+std::vector<double> daphne::RowBindOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+
+std::vector<double> daphne::ColBindOp::inferSparsity() {
+    const MncSketch *h = getSketchOrUnknownFromResult(getResult());
+    if (!h) return {-1.0};
+    double s = estimateSparsity_fromSketch(*h);
+    return {s};
+}
+
 // ****************************************************************************
 // Elementwise operations
 // ****************************************************************************
