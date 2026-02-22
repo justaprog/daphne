@@ -1,0 +1,165 @@
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.984848
+MNC:
+Sparsity:0.984848
+Relative error:1
+Same Rep
+Estimator:
+Sparsity:1
+Relative error:1.01538
+Same Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.968407
+MNC:
+Sparsity:0.997544
+Relative error:1.03009
+Same Rep
+Estimator:
+Sparsity:0.0383607
+Relative error:25.2447
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.974482
+MNC:
+Sparsity:0.997676
+Relative error:1.0238
+Same Rep
+Estimator:
+Sparsity:0.0394166
+Relative error:24.7226
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.721633
+MNC:
+Sparsity:0.716346
+Relative error:1.00738
+Same Rep
+Estimator:
+Sparsity:0.278393
+Relative error:2.59214
+Same Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.945067
+MNC:
+Sparsity:0.99875
+Relative error:1.0568
+Same Rep
+Estimator:
+Sparsity:0.943751
+Relative error:1.00139
+Same Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.647939
+MNC:
+Sparsity:0.980457
+Relative error:1.51319
+Same Rep
+Estimator:
+Sparsity:0.0198016
+Relative error:32.7216
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.99875
+MNC:
+Sparsity:0.998742
+Relative error:1.00001
+Same Rep
+Estimator:
+Sparsity:0.158152
+Relative error:6.31511
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.9995
+MNC:
+Sparsity:0.9995
+Relative error:1
+Same Rep
+Estimator:
+Sparsity:0.181114
+Relative error:5.51863
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.91954
+MNC:
+Sparsity:0.9995
+Relative error:1.08696
+Same Rep
+Estimator:
+Sparsity:0.181114
+Relative error:5.07714
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.991304
+MNC:
+Sparsity:0.965821
+Relative error:1.02638
+Same Rep
+Estimator:
+Sparsity:0.110057
+Relative error:9.00719
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.994595
+MNC:
+Sparsity:0.989481
+Relative error:1.00517
+Same Rep
+Estimator:
+Sparsity:0.139464
+Relative error:7.13154
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.997085
+MNC:
+Sparsity:0.975204
+Relative error:1.02244
+Same Rep
+Estimator:
+Sparsity:0.0416375
+Relative error:23.9468
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.998047
+MNC:
+Sparsity:0.977007
+Relative error:1.02153
+Same Rep
+Estimator:
+Sparsity:0.0286731
+Relative error:34.8078
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.821422
+MNC:
+Sparsity:0.99717
+Relative error:1.21396
+Same Rep
+Estimator:
+Sparsity:0.178676
+Relative error:4.59727
+Diff Rep
+-------------------------------End-------------------------
+-------------------------------Begin-------------------------
+Real Sparsity matmul_m_mnc:0.802192
+MNC:
+Sparsity:0.997162
+Relative error:1.24305
+Same Rep
+Estimator:
+Sparsity:0.18814
+Relative error:4.26381
+Diff Rep
+-------------------------------End-------------------------
