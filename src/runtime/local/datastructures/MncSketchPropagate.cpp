@@ -468,38 +468,119 @@ MncSketch propagateAdd(const MncSketch &A, const MncSketch &B) {
 }
 /*Element-wise Multiplication propagation (see section 4.2 from "MNC: Structure-Exploiting Sparsity Estimation for
 Matrix Expressions" paper)*/
+// ---------- helpers ---------------------------------------------------------
+
+static std::uint64_t sumU64(const std::vector<std::uint32_t> &v) {
+    std::uint64_t s = 0;
+    for (auto x : v) s += x;
+    return s;
+}
+// splitmix64 hash (deterministic pseudo-random)
+static std::uint64_t splitmix64(std::uint64_t x) {
+    x += 0x9e3779b97f4a7c15ULL;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
+}
+
+// Convert 64-bit hash to uniform double in [0,1)
+static double u01_from_u64(std::uint64_t x) {
+    // take top 53 bits -> double mantissa
+    constexpr double inv2p53 = 1.0 / 9007199254740992.0; // 2^53
+    return static_cast<double>(x >> 11) * inv2p53;
+}
+
+// Deterministic probabilistic rounding (order-independent)
+static std::uint32_t probRoundClampDet(double x, std::uint64_t key,
+                                              std::uint32_t hiInclusive) {
+    if (!(x > 0.0)) return 0; // handles x<=0 and NaN
+    const double f = std::floor(x);
+    const double frac = x - f;
+
+    std::uint64_t y = static_cast<std::uint64_t>(f);
+    if (frac > 0.0) {
+        const double u = u01_from_u64(splitmix64(key));
+        if (u < frac) y += 1;
+    }
+    if (y > hiInclusive) y = hiInclusive;
+    return static_cast<std::uint32_t>(y);
+}
+
+// ---------- element-wise multiplication propagation -------------------------
+
 MncSketch propagateMul(const MncSketch &A, const MncSketch &B) {
+    // element-wise requires same dims
+    if (A.m != B.m || A.n != B.n)
+        throw std::runtime_error("propagateMul: dimension mismatch");
+
+    if (!A.hr || !A.hc || !B.hr || !B.hc)
+        throw std::runtime_error("propagateMul: missing hr/hc vectors");
+
+    const std::size_t m = A.m;
+    const std::size_t n = A.n;
+
+    if (A.hr->size() != m || B.hr->size() != m || A.hc->size() != n || B.hc->size() != n)
+        throw std::runtime_error("propagateMul: hr/hc vector sizes inconsistent with m/n");
+
+    const auto &hrA = *A.hr;
+    const auto &hcA = *A.hc;
+    const auto &hrB = *B.hr;
+    const auto &hcB = *B.hc;
+
+    const std::uint64_t nnzA = sumU64(hrA);
+    const std::uint64_t nnzB = sumU64(hrB);
+
     MncSketch C;
-    C.m = A.m;
-    C.n = A.n;
-    C.hr = std::make_shared<std::vector<uint32_t>>(C.m, 0);
-    C.hc = std::make_shared<std::vector<uint32_t>>(C.n, 0);
+    C.m = m;
+    C.n = n;
+    C.hr = std::make_shared<std::vector<std::uint32_t>>(m, 0);
+    C.hc = std::make_shared<std::vector<std::uint32_t>>(n, 0);
 
-    double sparsity = estimateSparsity_ElementWiseMultiplication(A, B);
-    double targetNNZ = sparsity * C.m * C.n;
+    // As per paper: extension vectors only if exactly preserved -> not for ⊙
+    C.her.reset();
+    C.hec.reset();
 
-    double totalRowA = std::accumulate(A.hr->begin(), A.hr->end(), 0U);
-    double totalRowB = std::accumulate(B.hr->begin(), B.hr->end(), 0U);
-    double totalColA = std::accumulate(A.hc->begin(), A.hc->end(), 0U);
-    double totalColB = std::accumulate(B.hc->begin(), B.hc->end(), 0U);
+    // conservative “full diagonal” propagation:
+    // only guaranteed if both are full diagonal
+    C.isDiagonal = (A.isDiagonal && B.isDiagonal);
 
-    double lambda_r = (totalRowA * totalRowB > 0) ? targetNNZ / (totalRowA * totalRowB) : 0.0;
-    double lambda_c = (totalColA * totalColB > 0) ? targetNNZ / (totalColA * totalColB) : 0.0;
-
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-
-    propagateVector(*A.hr, *C.hr, 0.0, C.nnzRows, C.maxHr, C.rowsEq1, C.rowsGtHalf, C.n / 2, gen);
-    for (size_t i = 0; i < C.m; ++i) {
-        double val = (*A.hr)[i] * (*B.hr)[i] * lambda_c;
-        (*C.hr)[i] = std::floor(val) + ((val - std::floor(val)) > std::uniform_real_distribution<>(0,1)(gen) ? 1 : 0);
+    if (nnzA == 0 || nnzB == 0) {
+        computeSummary(C);
+        return C;
     }
 
-    propagateVector(*A.hc, *C.hc, 0.0, C.nnzCols, C.maxHc, C.colsEq1, C.colsGtHalf, C.m / 2, gen);
-    for (size_t j = 0; j < C.n; ++j) {
-        double val = (*A.hc)[j] * (*B.hc)[j] * lambda_r;
-        (*C.hc)[j] = std::floor(val) + ((val - std::floor(val)) > std::uniform_real_distribution<>(0,1)(gen) ? 1 : 0);
+    // λc from column collisions, λr from row collisions (symmetric form)
+    long double colDot = 0.0L;
+    for (std::size_t j = 0; j < n; ++j)
+        colDot += static_cast<long double>(hcA[j]) * static_cast<long double>(hcB[j]);
+
+    long double rowDot = 0.0L;
+    for (std::size_t i = 0; i < m; ++i)
+        rowDot += static_cast<long double>(hrA[i]) * static_cast<long double>(hrB[i]);
+
+    const long double denom = static_cast<long double>(nnzA) * static_cast<long double>(nnzB);
+    const double lambda_c = static_cast<double>(colDot / denom);
+    const double lambda_r = static_cast<double>(rowDot / denom);
+
+    // clamp maxima to uint32 range
+    const std::uint32_t maxRowNnz =
+        static_cast<std::uint32_t>(std::min<std::size_t>(n, std::numeric_limits<std::uint32_t>::max()));
+    const std::uint32_t maxColNnz =
+        static_cast<std::uint32_t>(std::min<std::size_t>(m, std::numeric_limits<std::uint32_t>::max()));
+
+    // Eq. (15): ⊙ propagation with probabilistic rounding
+    // hrC[i] = round( hrA[i] * hrB[i] * λc )
+    for (std::size_t i = 0; i < m; ++i) {
+        const double est = static_cast<double>(hrA[i]) * static_cast<double>(hrB[i]) * lambda_c;
+        (*C.hr)[i] = probRoundClampDet(est, /*key*/0xC0FFEEULL ^ (std::uint64_t)i, maxRowNnz);
     }
 
+    // hcC[j] = round( hcA[j] * hcB[j] * λr )
+    for (std::size_t j = 0; j < n; ++j) {
+        const double est = static_cast<double>(hcA[j]) * static_cast<double>(hcB[j]) * lambda_r;
+        (*C.hc)[j] = probRoundClampDet(est, /*key*/0xBADC0DEULL ^ (std::uint64_t)j, maxColNnz);
+    }
+
+    computeSummary(C);
     return C;
 }
