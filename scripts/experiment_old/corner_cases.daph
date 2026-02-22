@@ -14,7 +14,7 @@
  * limitations under the License.
  */
  
-// run: bin/daphne --explain property_inference scripts/experiment_new/corner_cases.daph
+// run: bin/daphne --explain property_inference scripts/experiment/corner_cases.daph
 // all works
 
 m1 = [0,0,0,0,0,0,0,1,0,
@@ -41,28 +41,23 @@ m_mul = m1 @ m2;
 
 threshold = 0.25;
 
-print("Es. Sparsity");
 es_spars_m_mul = sparsity(m_mul);
-print(es_spars_m_mul);
+print("Es. Sparsity:", 0); print(es_spars_m_mul);
 
-print("Real Sparsity:");
+
 real_spars_m_mul = as.f64(sum(m_mul != 0)) / as.f64(nrow(m_mul) * ncol(m_mul));
-print(real_spars_m_mul);
+print("Real Sparsity:",0); print(real_spars_m_mul);
 
 counter = 0;
 if (sparsity(m_mul) >= threshold && sparsity(m_mul) >= threshold){
     counter = counter + 1;
-    print("Same Rep");
+    print("Right Representation");
 }
 else if (sparsity(m_mul) < threshold && sparsity(m_mul) < threshold){
     counter = counter + 1;
-    print("Same Rep");
+    print("Right Representation");
 }
 else {
-    print("Diff Reg");
+    print("Wrong Representation");
 }
-
-
-
-
 

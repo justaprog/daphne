@@ -15,7 +15,7 @@
  */
 
 // run: bin/daphne --explain property_inference scripts/mncsketch/reog_op.daph T_C=\"./data/test/t_c.csv\" C_RESHAPE=\"./data/test/c_reshape.csv\"
-//  
+// all works
 
 // transpose
 c = [0,0,0,0,0,0,0,1,0,
