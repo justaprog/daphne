@@ -15,8 +15,8 @@
  */
 
 // bin/daphne --explain property_inference scripts/experiment/matmul_m.daph M1_WITHOUT_MNC=\"./data/real/bp__1000.mtx\" M1_WITH_MNC=\"./data/real/withmnc/bp__1000.csv\" M2_WITHOUT_MNC=\"./data/real/bp__1200.mtx\" M2_WITH_MNC=\"./data/real/withmnc/bp__1200.csv\"
-// W is a dense matrix with all entries 1s except last col (0s)
-// experiment: X @ W
+// experiment: X @ T(X)
+// X is real, sparse matrix and X_T is its transpose rep
 // metric 1: relative error
 // metric 2: right presentation ration 
 
@@ -25,14 +25,16 @@ m1_without_mnc = readMatrix($M1_WITHOUT_MNC);
 // To save meta data with mnc 
 m1_with_mnc = readMatrix($M1_WITH_MNC);
 
-m2_without_mnc = readMatrix($M2_WITHOUT_MNC);
+n = $N;
+m = $M;
+m2_without_mnc = rand(n,m, 1.0, 10.0, 0.3, 42);
 // To save meta data with mnc 
-m2_with_mnc = readMatrix($M2_WITH_MNC);
+m2_with_mnc = rand(n,m, 1.0, 10.0, 0.3, 42);
 
 threshold = 0.25;
 
-matmul_m_mnc = m1_with_mnc @ m2_with_mnc;
-matmul_m = m1_without_mnc @ m2_without_mnc;
+matmul_m_mnc = m1_with_mnc * m2_with_mnc;
+matmul_m = m1_without_mnc * m2_without_mnc;
 
 cells = as.f64(nrow(matmul_m_mnc) * ncol(matmul_m_mnc));
 real_spars = as.f64(sum(matmul_m_mnc != 0.0)) / as.f64(nrow(matmul_m_mnc) * ncol(matmul_m_mnc));

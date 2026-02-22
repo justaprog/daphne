@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-// bin/daphne --explain property_inference scripts/experiment/matmul_cases.daph M1_WITHOUT_MNC=\"./data/real/bp__1000.mtx\" M1_WITH_MNC=\"./data/real/withmnc/bp__1000.csv\" M1_O=\"./data/real/withmnc/bp__1000.csv\" M2_WITHOUT_MNC=\"./data/real/bp__1200.mtx\" M2_WITH_MNC=\"./data/real/withmnc/bp__1200.csv\" M2_O=\"./data/real/withmnc/bp__1200.csv\"
-// all works 
+// bin/daphne --explain property_inference scripts/experiment/matmul_m.daph M1_WITHOUT_MNC=\"./data/real/bp__1000.mtx\" M1_WITH_MNC=\"./data/real/withmnc/bp__1000.csv\" M2_WITHOUT_MNC=\"./data/real/bp__1200.mtx\" M2_WITH_MNC=\"./data/real/withmnc/bp__1200.csv\"
+// experiment: X @ Y
+// both X and Y are sparse, real matrices
+// metric 1: relative error
+// metric 2: right presentation ration 
 
+print("-------------------------------Begin-------------------------");
 m1_without_mnc = readMatrix($M1_WITHOUT_MNC);
 // To save meta data with mnc 
 m1_with_mnc = readMatrix($M1_WITH_MNC);
@@ -25,18 +29,24 @@ m2_without_mnc = readMatrix($M2_WITHOUT_MNC);
 // To save meta data with mnc 
 m2_with_mnc = readMatrix($M2_WITH_MNC);
 
-threshold = 0.25;
+threshold = 0.1;
 
-print("Experiment with mnc:");
-matmul_m_mnc = m1_with_mnc @ m2_with_mnc; // 35 x 4
-matmul_m = m1_without_mnc @ m1_without_mnc; // 35 x 4
+matmul_m_mnc = m1_with_mnc @ m2_with_mnc;
+matmul_m = m1_without_mnc @ m2_without_mnc;
 
-print("Real Sparsity matmul_m_mnc:");
+cells = as.f64(nrow(matmul_m_mnc) * ncol(matmul_m_mnc));
 real_spars = as.f64(sum(matmul_m_mnc != 0.0)) / as.f64(nrow(matmul_m_mnc) * ncol(matmul_m_mnc));
-print(real_spars);
+print("Real Sparsity matmul_m_mnc:",0); print(real_spars);
+print("real_nnz:",0); print(as.f64(sum(matmul_m_mnc != 0.0)));
 
 print("MNC:");
-print(sparsity(matmul_m_mnc));
+spar_mnc = sparsity(matmul_m_mnc);
+print("Sparsity:",0); print(spar_mnc);
+print("mnc_nnz:",0); print(spar_mnc*cells);
+
+relative_mnc = as.f64(max(spar_mnc, real_spars) / min(spar_mnc, real_spars));
+print("Relative error:",0); print(relative_mnc);
+
 if (sparsity(matmul_m_mnc) >= threshold && real_spars >= threshold){
     print("Same Rep");
 }
@@ -47,8 +57,17 @@ else {
     print("Diff Rep");
 }
 
+
+
 print("Estimator:");
-print(sparsity(matmul_m));
+spar_without_mnc = sparsity(matmul_m);
+print("Sparsity:", 0); print(spar_without_mnc);
+
+print("estimator_nnz:",0); print(spar_without_mnc*cells);
+
+relative_without_mnc = as.f64(max(spar_without_mnc, real_spars) / min(spar_without_mnc, real_spars));
+print("Relative error:",0); print(relative_without_mnc);
+
 if (sparsity(matmul_m) >= threshold && real_spars >= threshold){
     print("Same Rep");
 }
@@ -58,3 +77,4 @@ else if (sparsity(matmul_m) < threshold && real_spars < threshold){
 else {
     print("Diff Rep");
 }
+print("-------------------------------End-------------------------");
